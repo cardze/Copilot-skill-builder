@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Design — TED Talk Slides</title>
+<style>
+  :root {
+    --red: #e62b1e;
+    --orange: #ff6b35;
+    --gold: #ffd700;
+    --green: #4ade80;
+    --blue: #60a5fa;
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #ffffff;
+    --muted: #888;
+    --dim: #555;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    color: var(--text);
+  }
+
+  /* ── DECK CONTAINER ── */
+  #deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* ── SLIDE ── */
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateY(20px);
+    background: var(--bg);
+    text-align: center;
+  }
+
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+    z-index: 10;
+  }
+
+  .slide.exit {
+    opacity: 0;
+    transform: translateY(-20px);
+    z-index: 9;
+  }
+
+  /* ── SLIDE TYPES ── */
+  .slide-title { background: var(--bg); }
+  .slide-statement { background: var(--bg); }
+  .slide-split { flex-direction: row; gap: 60px; text-align: left; }
+  .slide-diagram { gap: 32px; }
+  .slide-quote { background: var(--bg); }
+  .slide-numbers { background: var(--bg); }
+  .slide-end { background: var(--bg); }
+
+  /* ── SLIDE ACCENT LINE ── */
+  .slide::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--red), transparent);
+    opacity: 0.6;
+  }
+
+  /* ── SLIDE NUMBER ── */
+  .slide-num {
+    position: absolute;
+    bottom: 28px;
+    right: 36px;
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── SECTION TAG ── */
+  .section-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 20px;
+    opacity: 0.9;
+  }
+
+  /* ── TYPOGRAPHY ── */
+  .h1 {
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -1px;
+    color: var(--text);
+  }
+
+  .h2 {
+    font-size: clamp(28px, 4.5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .h3 {
+    font-size: clamp(20px, 3vw, 36px);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .body {
+    font-size: clamp(15px, 2vw, 22px);
+    line-height: 1.65;
+    color: #bbb;
+    max-width: 760px;
+  }
+
+  .caption {
+    font-size: clamp(12px, 1.5vw, 15px);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .red { color: var(--red); }
+  .gold { color: var(--gold); }
+  .green { color: var(--green); }
+  .orange { color: var(--orange); }
+  .blue { color: var(--blue); }
+  .dim { color: var(--muted); }
+
+  .spacer { height: 20px; }
+  .spacer-sm { height: 12px; }
+  .spacer-lg { height: 36px; }
+
+  /* ── TED BADGE ── */
+  .ted-badge {
+    display: inline-block;
+    background: var(--red);
+    color: white;
+    font-weight: 900;
+    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+  }
+
+  /* ── PILL ── */
+  .pill {
+    display: inline-block;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 100px;
+    padding: 6px 18px;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 4px;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 48px;
+    height: 3px;
+    background: var(--red);
+    border-radius: 2px;
+    margin: 24px auto;
+  }
+
+  .divider-left { margin: 24px 0; }
+
+  /* ── STAT CARDS ── */
+  .stat-row {
+    display: flex;
+    gap: 24px;
+    align-items: stretch;
+    justify-content: center;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .stat-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stat-card.red-card { border-color: #5a1a1a; background: rgba(90,26,26,0.2); }
+  .stat-card.green-card { border-color: #1a4a2a; background: rgba(26,74,42,0.2); }
+
+  .stat-label-top {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stat-big {
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+
+  .stat-verdict {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 8px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .verdict-fail { background: rgba(220,50,50,0.15); color: #ff6b6b; }
+  .verdict-pass { background: rgba(74,222,128,0.15); color: var(--green); }
+
+  /* ── CONCEPT CARDS (horizontal list) ── */
+  .card-row {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    max-width: 900px;
+    align-items: stretch;
+  }
+
+  .card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s;
+  }
+
+  .card-icon { font-size: 32px; }
+  .card-title { font-size: 16px; font-weight: 800; color: white; }
+  .card-desc { font-size: 13px; color: #888; line-height: 1.55; flex: 1; }
+
+  /* ── ARCH DIAGRAM ── */
+  .arch-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .arch-box {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    text-align: center;
+    min-width: 150px;
+    transition: border-color 0.3s;
+  }
+
+  .arch-box.active-box {
+    border-color: var(--red);
+    background: rgba(230,43,30,0.06);
+  }
+
+  .arch-icon { font-size: 36px; margin-bottom: 8px; }
+  .arch-name { font-size: 18px; font-weight: 800; color: white; }
+  .arch-role { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .arch-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+  }
+
+  .conn-line {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--border), var(--red));
+    position: relative;
+  }
+
+  .conn-line::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -4px;
+    border-left: 9px solid var(--red);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .conn-label {
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .conn-double {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px;
+  }
+
+  .conn-pair {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .conn-short {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── BIG NUMBER ── */
+  .big-num {
+    font-size: clamp(80px, 14vw, 160px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -4px;
+  }
+
+  /* ── QUOTE SLIDE ── */
+  .quote-mark {
+    font-size: 120px;
+    line-height: 0.6;
+    color: var(--red);
+    opacity: 0.25;
+    font-family: Georgia, serif;
+    position: absolute;
+    top: 48px;
+    left: 60px;
+  }
+
+  .quote-text {
+    font-size: clamp(24px, 4vw, 48px);
+    font-weight: 700;
+    line-height: 1.3;
+    max-width: 820px;
+    font-style: italic;
+    color: white;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── SPLIT LAYOUT ── */
+  .split-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .split-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  /* ── PROBLEM ITEM ── */
+  .prob-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .prob-icon { font-size: 28px; flex-shrink: 0; }
+  .prob-title { font-size: 16px; font-weight: 800; color: white; margin-bottom: 6px; }
+  .prob-desc { font-size: 13px; color: #777; line-height: 1.5; }
+
+  /* ── TIMELINE BAR ── */
+  .timeline {
+    width: 100%;
+    max-width: 700px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .tl-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tl-row:last-child { border-bottom: none; }
+
+  .tl-time {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--red);
+    width: 90px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tl-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    flex: 1;
+  }
+
+  .tl-note {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ── CONTROLS ── */
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 10px 20px;
+    z-index: 100;
+    opacity: 1;
+    transition: opacity 0.4s;
+  }
+
+  #controls.hidden { opacity: 0; pointer-events: none; }
+
+  .ctrl-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ctrl-btn:hover:not(:disabled) { color: white; background: var(--surface2); }
+  .ctrl-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+  .ctrl-counter {
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 44px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .ctrl-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+  }
+
+  .ctrl-fullscreen {
+    font-size: 14px;
+  }
+
+  /* ── PROGRESS DOTS ── */
+  #progress-dots {
+    position: fixed;
+    bottom: 28px;
+    right: 32px;
+    display: flex;
+    gap: 6px;
+    z-index: 100;
+  }
+
+  .p-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .p-dot.active {
+    background: var(--red);
+    width: 20px;
+    border-radius: 3px;
+  }
+
+  /* ── TITLE SLIDE SPECIAL ── */
+  .title-underline {
+    width: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--red), var(--orange));
+    border-radius: 2px;
+    margin: 20px auto 0;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.3s;
+  }
+
+  .slide.active .title-underline { width: 120px; }
+
+  /* ── ORCHESTRATION PATTERNS ── */
+  .orch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    max-width: 860px;
+    width: 100%;
+  }
+
+  .orch-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 20px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .orch-card.featured {
+    border-color: rgba(230,43,30,0.5);
+    background: rgba(230,43,30,0.05);
+  }
+
+  .orch-card-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: white;
+  }
+
+  .orch-card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .orch-viz {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .o-node {
+    background: var(--surface2);
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #bbb;
+    white-space: nowrap;
+  }
+
+  .o-node.o-main { border-color: var(--red); color: var(--red); }
+  .o-node.o-eval { border-color: var(--orange); color: var(--orange); }
+  .o-node.o-gen  { border-color: var(--blue);   color: var(--blue);  }
+
+  .o-arr { color: #444; font-size: 12px; }
+  .o-col { display: flex; flex-direction: column; gap: 5px; }
+
+  .loop-tag {
+    display: inline-block;
+    border: 1px solid var(--orange);
+    background: rgba(255,107,53,0.08);
+    color: var(--orange);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  /* agent loop diagram */
+  .agent-loop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: relative;
+  }
+
+  .loop-node {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    width: 88px; height: 88px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #aaa;
+  }
+
+  .loop-node .ln-icon { font-size: 22px; }
+  .loop-node.ln-act { border-color: var(--red); color: var(--red); }
+
+  .loop-conn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 8px;
+    gap: 2px;
+  }
+
+  .lc-line {
+    width: 36px; height: 1px;
+    background: linear-gradient(90deg, #333, #555);
+    position: relative;
+  }
+
+  .lc-line::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -4px;
+    border-left: 7px solid #555;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+
+  .lc-label { font-size: 9px; color: var(--dim); }
+
+  /* ── FULLSCREEN HINT ── */
+  #fs-hint {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    font-size: 11px;
+    color: var(--dim);
+    z-index: 100;
+    font-family: -apple-system, sans-serif;
+    letter-spacing: 1px;
+  }
+
+  /* ── GANTT / COMPARISON BAR ── */
+  .compare-wrap {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .compare-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .compare-label {
+    width: 140px;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .compare-bar-wrap {
+    flex: 1;
+    height: 36px;
+    background: var(--surface);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .compare-bar {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1) 0.4s;
+  }
+
+  .bar-red { background: linear-gradient(90deg, #8a1a1a, #c0231a); }
+  .bar-green { background: linear-gradient(90deg, #1a5a2a, #22a852); }
+
+  .compare-val {
+    width: 60px;
+    font-size: 14px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight-box {
+    border: 1px solid rgba(230,43,30,0.3);
+    background: rgba(230,43,30,0.06);
+    border-radius: 12px;
+    padding: 24px 32px;
+    max-width: 700px;
+  }
+
+  /* ── STEP LIST ── */
+  .step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+    max-width: 640px;
+    width: 100%;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--red);
+    color: white;
+    font-size: 13px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-body { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .step-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── GAN DIAGRAM ── */
+  .gan-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .gan-box {
+    border-radius: 14px;
+    padding: 20px 32px;
+    text-align: center;
+    min-width: 160px;
+  }
+
+  .gan-box.gen { background: rgba(96,165,250,0.1); border: 2px solid rgba(96,165,250,0.3); }
+  .gan-box.disc { background: rgba(230,43,30,0.1); border: 2px solid rgba(230,43,30,0.3); }
+
+  .gan-icon { font-size: 40px; margin-bottom: 8px; }
+  .gan-name { font-size: 18px; font-weight: 800; }
+  .gan-role { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .gan-vs {
+    padding: 0 24px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .vs-circle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  /* ── ENDING SLIDE ── */
+  .end-question {
+    font-size: clamp(22px, 3.5vw, 42px);
+    font-weight: 800;
+    line-height: 1.3;
+    max-width: 700px;
+    color: white;
+  }
+</style>
+</head>
+<body>
+
+<div id="fs-hint">F — 全螢幕 ・ ← → 切換</div>
+
+<div id="deck">
+
+  <!-- ─── SLIDE 1: TITLE ─── -->
+  <div class="slide slide-title active" data-slide="1">
+    <div class="ted-badge">TED</div>
+    <div class="h1" style="max-width:820px">Harness Design<br><span class="red">for Long-Running AI Apps</span></div>
+    <div class="title-underline"></div>
+    <div class="spacer-lg"></div>
+    <div class="body" style="font-size:18px; color: var(--muted)">如何讓聰明的 AI，真正把一件複雜的事做完</div>
+    <div class="spacer-lg"></div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center">
+      <span class="pill">🤖 AI Agent</span>
+      <span class="pill">🏗️ System Design</span>
+      <span class="pill">⚡ Claude</span>
+      <span class="pill">🎯 Evaluation</span>
+    </div>
+    <div class="slide-num">1</div>
+  </div>
+
+  <!-- ─── SLIDE 2: HOOK ─── -->
+  <div class="slide" data-slide="2">
+    <div class="section-tag">開場</div>
+    <div class="h2" style="max-width:760px; line-height:1.2">
+      一句話：<br>「幫我做一個 2D 復古遊戲製作工具。」
+    </div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div style="display:flex; gap:20px; align-items:center">
+      <div style="text-align:center">
+        <div style="font-size:48px; font-weight:900; color:var(--gold)">6 小時</div>
+        <div class="caption" style="margin-top:8px">後</div>
+      </div>
+      <div style="width:1px; height:60px; background:var(--border)"></div>
+      <div style="text-align:left; font-size:16px; color:#bbb; line-height:1.7">
+        ✦ 關卡編輯器<br>
+        ✦ 角色編輯器<br>
+        ✦ AI 輔助關卡設計<br>
+        ✦ 完整遊戲引擎
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="highlight-box">
+      <div class="h3" style="font-size:20px">這背後的技術，叫做 <span class="red">Harness Design</span></div>
+    </div>
+    <div class="slide-num">2</div>
+  </div>
+
+  <!-- ─── SLIDE 3: WHAT IS AN AGENT ─── -->
+  <div class="slide" data-slide="3">
+    <div class="section-tag">背景知識</div>
+    <div class="h2">什麼是 <span class="red">AI Agent</span>？</div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div class="agent-loop">
+      <div class="loop-node">
+        <div class="ln-icon">👁️</div>
+        Perceive
+      </div>
+      <div class="loop-conn">
+        <div class="lc-line"></div>
+        <div class="lc-label">觀察環境</div>
+      </div>
+      <div class="loop-node">
+        <div class="ln-icon">🧠</div>
+        Reason
+      </div>
+      <div class="loop-conn">
+        <div class="lc-line"></div>
+        <div class="lc-label">思考決策</div>
+      </div>
+      <div class="loop-node ln-act">
+        <div class="ln-icon">⚡</div>
+        Act
+      </div>
+      <div class="loop-conn">
+        <div class="lc-line"></div>
+        <div class="lc-label">使用工具</div>
+      </div>
+      <div class="loop-node">
+        <div class="ln-icon">📋</div>
+        Observe
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="caption" style="font-size:13px; color:var(--muted)">↻ 重複執行，直到目標達成</div>
+    <div class="spacer-lg"></div>
+    <div class="card-row" style="max-width:780px">
+      <div class="card" style="text-align:center; flex-direction:row; gap:14px; align-items:center">
+        <div style="font-size:28px">💬</div>
+        <div style="text-align:left">
+          <div class="card-title">一般 API 呼叫</div>
+          <div class="card-desc">問一個問題 → 得到一個答案。靜態、一次性。</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(230,43,30,0.4); background:rgba(230,43,30,0.04); flex-direction:row; gap:14px; align-items:center">
+        <div style="font-size:28px">🤖</div>
+        <div style="text-align:left">
+          <div class="card-title" style="color:var(--red)">AI Agent</div>
+          <div class="card-desc">自主設定目標、呼叫工具、根據結果調整，持續執行直到完成。</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">3</div>
+  </div>
+
+  <!-- ─── SLIDE 4: AGENT TOOLS ─── -->
+  <div class="slide" data-slide="4">
+    <div class="section-tag">背景知識</div>
+    <div class="h2">Agent 能做什麼？<br><span style="color:#bbb; font-size:0.6em; font-weight:400">它有<span class="red">工具</span></span></div>
+    <div class="spacer-lg"></div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; max-width:820px; width:100%">
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🌐</div>
+        <div class="card-title" style="font-size:13px">Web Search</div>
+        <div class="card-desc" style="font-size:11px">查詢即時資訊</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">💻</div>
+        <div class="card-title" style="font-size:13px">Code Execution</div>
+        <div class="card-desc" style="font-size:11px">執行程式、跑測試</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🗂️</div>
+        <div class="card-title" style="font-size:13px">File I/O</div>
+        <div class="card-desc" style="font-size:11px">讀寫專案檔案</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🎭</div>
+        <div class="card-title" style="font-size:13px">Browser Control</div>
+        <div class="card-desc" style="font-size:11px">操作網頁、截圖</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🤖</div>
+        <div class="card-title" style="font-size:13px; color:var(--red)">Sub-Agent</div>
+        <div class="card-desc" style="font-size:11px">呼叫其他 Agent</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🔌</div>
+        <div class="card-title" style="font-size:13px">API / MCP</div>
+        <div class="card-desc" style="font-size:11px">串接外部服務</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🗃️</div>
+        <div class="card-title" style="font-size:13px">Memory / DB</div>
+        <div class="card-desc" style="font-size:11px">儲存與查詢狀態</div>
+      </div>
+      <div class="card" style="text-align:center; align-items:center; gap:12px">
+        <div style="font-size:36px">🔧</div>
+        <div class="card-title" style="font-size:13px">Custom Tools</div>
+        <div class="card-desc" style="font-size:11px">任何你定義的動作</div>
+      </div>
+    </div>
+    <div class="slide-num">4</div>
+  </div>
+
+  <!-- ─── SLIDE 5: ORCHESTRATION OVERVIEW ─── -->
+  <div class="slide" data-slide="5">
+    <div class="section-tag">Orchestration Patterns</div>
+    <div class="h2">一個 Agent 不夠用時——<br>讓 Agent <span class="red">指揮</span> Agent</div>
+    <div class="spacer-lg"></div>
+    <div class="orch-grid">
+
+      <div class="orch-card">
+        <div class="orch-card-title">① Sequential Pipeline</div>
+        <div class="orch-card-desc">依序執行，前一步的輸出是下一步的輸入。適合有明確流程的任務。</div>
+        <div class="orch-viz">
+          <div class="o-node">Agent A</div>
+          <div class="o-arr">→</div>
+          <div class="o-node">Agent B</div>
+          <div class="o-arr">→</div>
+          <div class="o-node">Agent C</div>
+        </div>
+      </div>
+
+      <div class="orch-card">
+        <div class="orch-card-title">② Parallel Workers</div>
+        <div class="orch-card-desc">Orchestrator 同時派出多個 worker，平行處理不同子任務，最後匯整結果。</div>
+        <div class="orch-viz">
+          <div class="o-node o-main">Orchestrator</div>
+          <div class="o-arr">→</div>
+          <div class="o-col">
+            <div class="o-node">Worker 1</div>
+            <div class="o-node">Worker 2</div>
+            <div class="o-node">Worker 3</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="orch-card">
+        <div class="orch-card-title">③ Routing</div>
+        <div class="orch-card-desc">Orchestrator 根據輸入的性質，動態路由到最適合的專業 Agent 處理。</div>
+        <div class="orch-viz">
+          <div class="o-node o-main">Router</div>
+          <div class="o-arr">→</div>
+          <div class="o-col">
+            <div class="o-node">Code Agent</div>
+            <div class="o-node">Search Agent</div>
+            <div class="o-node">Write Agent</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="orch-card featured">
+        <div style="display:flex; align-items:center; gap:8px">
+          <div class="orch-card-title">④ Evaluator-Optimizer</div>
+          <div class="loop-tag">今天的主角</div>
+        </div>
+        <div class="orch-card-desc">Generator 產出，Evaluator 嚴格檢查，回饋讓 Generator 改進。不斷迴圈直到達標。</div>
+        <div class="orch-viz">
+          <div class="o-node o-gen">Generator</div>
+          <div class="o-arr">⇄</div>
+          <div class="o-node o-eval">Evaluator</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="slide-num">5</div>
+  </div>
+
+  <!-- ─── SLIDE 6: EVALUATOR-OPTIMIZER DEEP DIVE ─── -->
+  <div class="slide" data-slide="6">
+    <div class="section-tag">Orchestration Patterns</div>
+    <div class="h2">Evaluator-Optimizer<br><span style="color:#bbb; font-weight:400; font-size:0.65em">深入拆解這個迴圈</span></div>
+    <div class="spacer-lg"></div>
+    <div style="display:flex; align-items:center; gap:0; justify-content:center; max-width:800px; width:100%">
+      <div style="background:rgba(96,165,250,0.08); border:2px solid rgba(96,165,250,0.3); border-radius:14px; padding:24px 28px; text-align:center; min-width:170px">
+        <div style="font-size:32px; margin-bottom:8px">⚡</div>
+        <div style="font-size:17px; font-weight:800; color:var(--blue)">Generator</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.5">依規格產出<br>程式碼或內容</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px; padding:0 24px; align-items:center">
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted)">
+          <div style="width:48px; height:1px; background:var(--blue)"></div>
+          <span style="color:var(--blue)">提交成果 →</span>
+          <div style="width:48px; height:1px; background:var(--blue); position:relative">
+            <span style="position:absolute;right:-1px;top:-4px;border-left:8px solid var(--blue);border-top:5px solid transparent;border-bottom:5px solid transparent"></span>
+          </div>
+        </div>
+        <div style="border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:11px; color:var(--muted); text-align:center; line-height:1.5">
+          ↻ 迴圈<br>直到全數通過
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted)">
+          <div style="width:48px; height:1px; background:var(--orange); position:relative">
+            <span style="position:absolute;left:-1px;top:-4px;border-right:8px solid var(--orange);border-top:5px solid transparent;border-bottom:5px solid transparent"></span>
+          </div>
+          <span style="color:var(--orange)">← 回傳 bug report</span>
+          <div style="width:48px; height:1px; background:var(--orange)"></div>
+        </div>
+      </div>
+      <div style="background:rgba(230,43,30,0.08); border:2px solid rgba(230,43,30,0.4); border-radius:14px; padding:24px 28px; text-align:center; min-width:170px">
+        <div style="font-size:32px; margin-bottom:8px">🔍</div>
+        <div style="font-size:17px; font-weight:800; color:var(--red)">Evaluator</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.5">用明確標準<br>嚴格驗證成果</div>
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div style="display:flex; gap:14px; max-width:720px; width:100%">
+      <div style="flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; text-align:left">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--blue); margin-bottom:8px">Evaluator 的三個條件</div>
+        <div style="font-size:12px; color:#999; line-height:1.8">
+          ✦ 有<strong style="color:white">具體的通過標準</strong>，不是感覺<br>
+          ✦ 用 few-shot 範例<strong style="color:white">校準嚴格度</strong><br>
+          ✦ <strong style="color:white">真實執行</strong>，不只是讀 code
+        </div>
+      </div>
+      <div style="flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; text-align:left">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--orange); margin-bottom:8px">為什麼不能自我評估</div>
+        <div style="font-size:12px; color:#999; line-height:1.8">
+          ✦ 同一個 context 裡有<strong style="color:white">確認偏誤</strong><br>
+          ✦ AI 對自己產出的東西<strong style="color:white">天生寬容</strong><br>
+          ✦ 分離才能獲得<strong style="color:white">真正客觀的審視</strong>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">6</div>
+  </div>
+
+  <!-- ─── SLIDE 7: BRIDGE ─── -->
+  <div class="slide" data-slide="7">
+    <div class="section-tag">概念橋接</div>
+    <div class="h2" style="max-width:680px">Harness Design<br>= <span class="red">Orchestration Patterns</span> 的組合</div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div style="display:flex; flex-direction:column; gap:12px; max-width:680px; width:100%">
+      <div style="display:flex; align-items:center; gap:16px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 22px">
+        <div style="font-size:28px">🗺️</div>
+        <div style="flex:1; text-align:left">
+          <div style="font-size:15px; font-weight:800; color:white">Planner</div>
+          <div style="font-size:12px; color:var(--muted)">一句話 → 完整規格書</div>
+        </div>
+        <div style="font-size:11px; color:var(--muted)">使用 →</div>
+        <div class="o-node o-main" style="font-size:11px">Sequential</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; background:rgba(230,43,30,0.05); border:1px solid rgba(230,43,30,0.3); border-radius:10px; padding:16px 22px">
+        <div style="font-size:28px">⚡</div>
+        <div style="flex:1; text-align:left">
+          <div style="font-size:15px; font-weight:800; color:white">Generator ⇄ Evaluator</div>
+          <div style="font-size:12px; color:var(--muted)">實作 → 測試 → 修正迴圈</div>
+        </div>
+        <div style="font-size:11px; color:var(--muted)">使用 →</div>
+        <div class="o-node o-eval" style="font-size:11px">Evaluator-Optimizer</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 22px">
+        <div style="font-size:28px">🔀</div>
+        <div style="flex:1; text-align:left">
+          <div style="font-size:15px; font-weight:800; color:white">Sprint 分工</div>
+          <div style="font-size:12px; color:var(--muted)">每個 sprint 獨立的 context 與責任</div>
+        </div>
+        <div style="font-size:11px; color:var(--muted)">使用 →</div>
+        <div class="o-node o-gen" style="font-size:11px">Parallel Workers</div>
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="highlight-box" style="max-width:680px; padding:16px 24px">
+      <div style="font-size:14px; color:#ccc; text-align:center">
+        這些 patterns 是業界已知的工具。Harness Design 是知道<span style="color:white; font-weight:700">在正確的地方，用正確的 pattern</span>。
+      </div>
+    </div>
+    <div class="slide-num">7</div>
+  </div>
+
+  <!-- ─── SLIDE 8 (was 3): THE PROBLEM ─── -->
+  <div class="slide" data-slide="3">
+    <div class="section-tag">問題</div>
+    <div class="h2">為什麼聰明的 AI<br>會<span class="red">「失智」</span>？</div>
+    <div class="spacer-lg"></div>
+    <div class="card-row">
+      <div class="card">
+        <div class="card-icon">🧠</div>
+        <div class="card-title">Context Anxiety<br>上下文焦慮</div>
+        <div class="card-desc">工作記憶（context window）快滿時，AI 開始緊張——倉促收尾、品質下降。就像一邊看 100 頁文件一邊寫作。</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🪞</div>
+        <div class="card-title">Self-Evaluation Bias<br>自我評估偏差</div>
+        <div class="card-desc">叫 AI 評估自己的作品？它幾乎永遠說「不錯！」即使 app 的核心功能壞了，它還是稱讚自己。</div>
+      </div>
+    </div>
+    <div class="slide-num">8</div>
+  </div>
+
+  <!-- ─── SLIDE 4: THE SYMPTOM ─── -->
+  <div class="slide" data-slide="4">
+    <div class="section-tag">問題</div>
+    <div class="h2" style="max-width:700px">AI 說：<span class="green">「品質很高！」</span></div>
+    <div class="spacer"></div>
+    <div class="h2" style="max-width:700px">你打開 app：<span class="red">角色動不了。</span></div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div class="body" style="max-width:580px; text-align:center">
+      這不是 AI 在說謊。<br>這是<strong style="color:white">系統設計</strong>的問題。
+    </div>
+    <div class="slide-num">9</div>
+  </div>
+
+  <!-- ─── SLIDE 5: GAN INSIGHT ─── -->
+  <div class="slide" data-slide="5">
+    <div class="section-tag">洞見</div>
+    <div class="h2">靈感來自 2014 年的<br>一個酒吧</div>
+    <div class="spacer-lg"></div>
+    <div class="gan-row">
+      <div class="gan-box gen">
+        <div class="gan-icon">🎨</div>
+        <div class="gan-name blue">Generator</div>
+        <div class="gan-role">負責生成</div>
+      </div>
+      <div class="gan-vs">
+        <div class="vs-circle">VS</div>
+        <div style="font-size:10px; color:var(--dim); margin-top:4px">對抗</div>
+      </div>
+      <div class="gan-box disc">
+        <div class="gan-icon">🔍</div>
+        <div class="gan-name red">Discriminator</div>
+        <div class="gan-role">負責判別</div>
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="caption">Ian Goodfellow 的 GAN — 生成對抗網路 (2014)</div>
+    <div class="slide-num">10</div>
+  </div>
+
+  <!-- ─── SLIDE 6: THE LEAP ─── -->
+  <div class="slide" data-slide="6">
+    <div class="section-tag">洞見</div>
+    <div class="quote-mark">"</div>
+    <div class="quote-text">如果我把 AI coding agent<br>也設計成這樣，會怎樣？</div>
+    <div class="spacer-lg"></div>
+    <div class="caption" style="font-size:14px">— Prithvi，Anthropic 工程師</div>
+    <div class="slide-num">11</div>
+  </div>
+
+  <!-- ─── SLIDE 7: NOT ENOUGH ─── -->
+  <div class="slide" data-slide="7">
+    <div class="section-tag">洞見</div>
+    <div class="h2">光是「分開」<br>還不夠。</div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div class="body" style="text-align:center; max-width:600px">
+      AI 對 AI 的東西，天生有種寬容。<br>你需要讓 evaluator 變得
+      <strong style="color:white; font-size:1.2em">嚴格</strong>。
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="step-list" style="max-width:560px">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">給它具體標準</div>
+          <div class="step-desc">每個功能的 pass/fail 定義清楚</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">用 few-shot 範例校準口味</div>
+          <div class="step-desc">讓它知道什麼叫「真的壞」</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">真的去操作 app</div>
+          <div class="step-desc">用 Playwright 打開瀏覽器，像真實用戶一樣測試</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">12</div>
+  </div>
+
+  <!-- ─── SLIDE 8: PLAYWRIGHT RESULT ─── -->
+  <div class="slide" data-slide="8">
+    <div class="section-tag">洞見</div>
+    <div class="h3" style="color:var(--muted); font-weight:400; margin-bottom:32px">Evaluator 回報的，不是感覺——是事實：</div>
+    <div style="display:flex; flex-direction:column; gap:12px; max-width:680px; width:100%; text-align:left">
+      <div style="background:rgba(220,50,50,0.08); border:1px solid rgba(220,50,50,0.2); border-radius:10px; padding:18px 22px; font-family:monospace; font-size:14px; line-height:1.7; color:#ddd">
+        Rectangle fill tool &nbsp;<span style="color:#ff4444; font-weight:700">FAIL</span><br>
+        <span style="color:var(--muted); font-size:12px">函數存在，但 mouseUp 事件沒有正確觸發</span>
+      </div>
+      <div style="background:rgba(220,50,50,0.08); border:1px solid rgba(220,50,50,0.2); border-radius:10px; padding:18px 22px; font-family:monospace; font-size:14px; line-height:1.7; color:#ddd">
+        Delete entity &nbsp;<span style="color:#ff4444; font-weight:700">FAIL</span><br>
+        <span style="color:var(--muted); font-size:12px">Handler 同時需要兩個條件，但點擊只設定了其中一個</span>
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="h3" style="color:white; font-size:20px">精確到程式碼的哪一行出了什麼問題。</div>
+    <div class="slide-num">13</div>
+  </div>
+
+  <!-- ─── SLIDE 9: ARCHITECTURE ─── -->
+  <div class="slide slide-diagram" data-slide="9">
+    <div class="section-tag">架構</div>
+    <div class="h2">三個 Agent，各司其職</div>
+    <div class="arch-row">
+      <div class="arch-box">
+        <div class="arch-icon">🗺️</div>
+        <div class="arch-name">Planner</div>
+        <div class="arch-role">一句話 → 完整規格書</div>
+      </div>
+      <div class="arch-connector">
+        <div class="conn-line"></div>
+        <div class="conn-label">規格書</div>
+      </div>
+      <div class="arch-box active-box">
+        <div class="arch-icon">⚡</div>
+        <div class="arch-name">Generator</div>
+        <div class="arch-role">Sprint by Sprint 實作</div>
+      </div>
+      <div class="conn-double">
+        <div class="conn-pair">
+          <div class="conn-short"></div>
+          <span>→ 交付</span>
+          <div class="conn-short"></div>
+        </div>
+        <div class="conn-pair">
+          <div class="conn-short"></div>
+          <span>← bugs</span>
+          <div class="conn-short"></div>
+        </div>
+      </div>
+      <div class="arch-box">
+        <div class="arch-icon">🔍</div>
+        <div class="arch-name">Evaluator</div>
+        <div class="arch-role">瀏覽器操作測試</div>
+      </div>
+    </div>
+    <div class="caption" style="margin-top:8px">沒有人評估自己的工作</div>
+    <div class="slide-num">14</div>
+  </div>
+
+  <!-- ─── SLIDE 10: PLANNER ─── -->
+  <div class="slide slide-split" data-slide="10">
+    <div class="split-left">
+      <div class="section-tag" style="text-align:left">架構 — Planner</div>
+      <div class="arch-box" style="display:inline-flex; flex-direction:column; align-items:center; margin-bottom:24px">
+        <div class="arch-icon">🗺️</div>
+        <div class="arch-name">Planner</div>
+      </div>
+      <div class="h2" style="font-size:32px">讓系統從<br>一開始就有<br><span class="red">野心</span></div>
+    </div>
+    <div class="split-right">
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-body">
+            <div class="step-title">功能列表</div>
+            <div class="step-desc">把模糊的一句話拆成具體的功能需求</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-body">
+            <div class="step-title">技術選型</div>
+            <div class="step-desc">框架、資料結構、API 整合方式</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-body">
+            <div class="step-title">視覺設計方向</div>
+            <div class="step-desc">UI 風格、色彩、互動邏輯</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">→</div>
+          <div class="step-body">
+            <div class="step-title">AI 功能整合計劃</div>
+            <div class="step-desc">哪些功能要用 AI 協助，怎麼用</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">15</div>
+  </div>
+
+  <!-- ─── SLIDE 11: SPRINT CONTRACT ─── -->
+  <div class="slide" data-slide="11">
+    <div class="section-tag">架構 — Generator</div>
+    <div class="h2">先簽契約，<br>再寫程式碼</div>
+    <div class="divider"></div>
+    <div class="highlight-box" style="text-align:left; max-width:640px; width:100%">
+      <div style="font-size:13px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:12px">Sprint Contract</div>
+      <div style="font-size:16px; color:white; line-height:1.8">
+        ✦ 這個 sprint 要做什麼<br>
+        ✦ 達到什麼具體標準<br>
+        ✦ Evaluator 怎麼測試我
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="body" style="max-width:560px; text-align:center">
+      雙方同意後，才開始寫 code。<br>強迫把<strong style="color:white">「做完」的定義</strong>說清楚。
+    </div>
+    <div class="slide-num">16</div>
+  </div>
+
+  <!-- ─── SLIDE 12: THE LOOP ─── -->
+  <div class="slide" data-slide="12">
+    <div class="section-tag">架構 — Evaluator</div>
+    <div class="h2">不讀 code。<br>打開瀏覽器，<span class="red">像用戶一樣</span>。</div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div style="display:flex; align-items:center; gap:0; justify-content:center">
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 22px; text-align:center; font-size:14px; font-weight:700; color:white">
+        Generator<br><span style="color:var(--muted); font-size:12px; font-weight:400">實作功能</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; padding:0 20px">
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted)">
+          <div style="width:40px; height:1px; background:var(--red)"></div>
+          <span>提交</span>
+          <div style="width:40px; height:1px; background:var(--red); position:relative">
+            <span style="position:absolute; right:-1px; top:-4px; border-left:8px solid var(--red); border-top:5px solid transparent; border-bottom:5px solid transparent;"></span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted)">
+          <div style="width:40px; height:1px; background:#444; position:relative">
+            <span style="position:absolute; left:-1px; top:-4px; border-right:8px solid #444; border-top:5px solid transparent; border-bottom:5px solid transparent;"></span>
+          </div>
+          <span>bug report</span>
+          <div style="width:40px; height:1px; background:#444"></div>
+        </div>
+      </div>
+      <div style="background:rgba(230,43,30,0.08); border:1px solid rgba(230,43,30,0.3); border-radius:10px; padding:16px 22px; text-align:center; font-size:14px; font-weight:700; color:white">
+        Evaluator<br><span style="color:var(--muted); font-size:12px; font-weight:400">操作測試</span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="caption">這個迴圈一輪一輪轉，直到每個標準都通過為止</div>
+    <div class="slide-num">17</div>
+  </div>
+
+  <!-- ─── SLIDE 13: RESULTS ─── -->
+  <div class="slide" data-slide="13">
+    <div class="section-tag">結果</div>
+    <div class="h2" style="margin-bottom:36px">同樣的 prompt，<br>不一樣的結果</div>
+    <div class="stat-row">
+      <div class="stat-card red-card">
+        <div class="stat-label-top">單一 Agent</div>
+        <div class="stat-big red">$9</div>
+        <div class="stat-sub">20 分鐘<br>角色動不了</div>
+        <div class="stat-verdict verdict-fail">核心功能壞了</div>
+      </div>
+      <div class="stat-card green-card">
+        <div class="stat-label-top">三 Agent Harness</div>
+        <div class="stat-big green">$200</div>
+        <div class="stat-sub">6 小時<br>可以玩 + AI 輔助</div>
+        <div class="stat-verdict verdict-pass">真的能用</div>
+      </div>
+    </div>
+    <div class="slide-num">18</div>
+  </div>
+
+  <!-- ─── SLIDE 14: EVOLUTION ─── -->
+  <div class="slide" data-slide="14">
+    <div class="section-tag">演化</div>
+    <div class="h2">隨著模型進步，<br>Harness <span class="red">會變輕</span></div>
+    <div class="divider"></div>
+    <div class="body" style="max-width:620px; text-align:center">
+      Claude Opus 4.6 推出後，context anxiety 問題模型自己能處理了。<br>
+      移掉 context reset，移掉 sprint 結構。<br>
+      Generator 連續工作 <strong style="color:white">兩個多小時</strong>，不需要中斷。
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="highlight-box">
+      <div style="font-size:15px; color:white; line-height:1.7">
+        💡 好的工程師要不斷問：<br>
+        <span style="color:var(--gold)">「這個組件現在還 load-bearing 嗎？<br>還是模型已經自己能做到了？」</span>
+      </div>
+    </div>
+    <div class="slide-num">19</div>
+  </div>
+
+  <!-- ─── SLIDE 15: REALITY CHECK ─── -->
+  <div class="slide" data-slide="15">
+    <div class="section-tag">現實檢視</div>
+    <div class="h2" style="max-width:720px">
+      但先等一下——<br>
+      <span class="red">這不代表每個人都能做到。</span>
+    </div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div class="card-row" style="max-width:860px">
+      <div class="card" style="border-color:#2a1a00; background:rgba(60,40,0,0.2)">
+        <div class="card-icon">🏢</div>
+        <div class="card-title" style="color:var(--gold)">目前是誰在做這件事？</div>
+        <div class="card-desc">
+          這些 showcase 來自 Anthropic、OpenAI、Google DeepMind 等大型 AI 公司的內部工程師——他們有優先 API 存取權、內部模型、龐大的計算資源，以及整個研究團隊的支持。
+        </div>
+      </div>
+      <div class="card" style="border-color:#1a1a2a; background:rgba(0,0,60,0.2)">
+        <div class="card-icon">💸</div>
+        <div class="card-title" style="color:var(--blue)">真實的成本門檻</div>
+        <div class="card-desc">
+          一次完整的 6 小時 harness run 花費約 $200 美元。多次迭代、多個專案、開發週期——對大多數個人開發者或小團隊而言，這還不是日常可負擔的工作流。
+        </div>
+      </div>
+      <div class="card" style="border-color:#1a2a1a; background:rgba(0,40,0,0.2)">
+        <div class="card-icon">🔧</div>
+        <div class="card-title" style="color:var(--green)">技術複雜度</div>
+        <div class="card-desc">
+          設計有效的 sprint contracts、校準嚴格的 evaluator、整合 Playwright 測試——這需要深度的系統設計知識，不是叫 AI 寫一個 prompt 就能完成的。
+        </div>
+      </div>
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="highlight-box" style="max-width:680px">
+      <div style="font-size:15px; color:#ccc; line-height:1.7; text-align:center">
+        這是一個方向，不是一個今天人人都能複製的食譜。<br>
+        <span style="color:white; font-weight:700">但了解這個方向，會讓你看清楚 AI 工程的下一步在哪裡。</span>
+      </div>
+    </div>
+    <div class="slide-num">20</div>
+  </div>
+
+  <!-- ─── SLIDE 16: BIG TRUTH ─── -->
+  <div class="slide" data-slide="16">
+    <div class="section-tag">更大的道理</div>
+    <div class="quote-mark">"</div>
+    <div class="quote-text">結構，才是品質的來源。<br>不是個人的天才。</div>
+    <div class="spacer-lg"></div>
+    <div style="display:flex; gap:20px; justify-content:center; flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="font-size:28px; margin-bottom:8px">👩‍💻</div>
+        <div style="font-size:12px; color:var(--muted)">Code Review<br>QA・Staging</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:28px; margin-bottom:8px">📚</div>
+        <div style="font-size:12px; color:var(--muted)">雙盲審查<br>學術期刊</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:28px; margin-bottom:8px">🏥</div>
+        <div style="font-size:12px; color:var(--muted)">手術室<br>Checklist</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:28px; margin-bottom:8px">🤖</div>
+        <div style="font-size:12px; color:var(--red); font-weight:700">Harness Design<br>AI Agents</div>
+      </div>
+    </div>
+    <div class="slide-num">21</div>
+  </div>
+
+  <!-- ─── SLIDE 17: PRINCIPLE ─── -->
+  <div class="slide" data-slide="17">
+    <div class="section-tag">更大的道理</div>
+    <div class="h2" style="max-width:700px; line-height:1.2">
+      不要只是叫 AI<br><span class="red">更努力</span>
+    </div>
+    <div class="divider"></div>
+    <div class="h2" style="max-width:700px; line-height:1.2; color:#bbb">
+      要給 AI 一個<br><span style="color:white">更好的工作環境</span>
+    </div>
+    <div class="slide-num">22</div>
+  </div>
+
+  <!-- ─── SLIDE 18: CLOSING QUESTION ─── -->
+  <div class="slide slide-end" data-slide="18">
+    <div class="section-tag">結語</div>
+    <div class="end-question">
+      你怎麼設計一個環境，<br>讓它能夠發揮出<br><span class="red">真正的潛力</span>？
+    </div>
+    <div class="divider"></div>
+    <div class="spacer-lg"></div>
+    <div class="caption" style="font-size:14px; max-width:480px; text-align:center">
+      這個問題的答案，還在不斷演化中。<br>而這，正是現在這個時代，最令人興奮的地方。
+    </div>
+    <div class="spacer-lg"></div>
+    <div class="ted-badge">謝謝大家</div>
+    <div class="slide-num">23 / 23</div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- CONTROLS -->
+<div id="controls">
+  <button class="ctrl-btn" id="prev-btn" onclick="navigate(-1)" disabled title="上一張 ←">←</button>
+  <div class="ctrl-counter" id="counter">1 / 23</div>
+  <button class="ctrl-btn" id="next-btn" onclick="navigate(1)" title="下一張 →">→</button>
+  <div class="ctrl-divider"></div>
+  <button class="ctrl-btn ctrl-fullscreen" onclick="toggleFullscreen()" title="全螢幕 F">⛶</button>
+</div>
+
+<!-- PROGRESS DOTS -->
+<div id="progress-dots"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const TOTAL = slides.length;
+  let current = 0;
+  let hideTimer;
+
+  // Build dots
+  const dotsEl = document.getElementById('progress-dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'p-dot' + (i === 0 ? ' active' : '');
+    d.title = `Slide ${i + 1}`;
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(index) {
+    if (index < 0 || index >= TOTAL) return;
+
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => slides[current].classList.remove('exit'), 500);
+
+    dotsEl.querySelectorAll('.p-dot')[current].classList.remove('active');
+
+    current = index;
+
+    slides[current].classList.add('active');
+    dotsEl.querySelectorAll('.p-dot')[current].classList.add('active');
+
+    document.getElementById('counter').textContent = `${current + 1} / ${TOTAL}`;
+    document.getElementById('prev-btn').disabled = current === 0;
+    document.getElementById('next-btn').disabled = current === TOTAL - 1;
+  }
+
+  function navigate(dir) { goTo(current + dir); }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault(); navigate(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault(); navigate(-1);
+    } else if (e.key === 'f' || e.key === 'F') {
+      toggleFullscreen();
+    } else if (e.key === 'Home') {
+      goTo(0);
+    } else if (e.key === 'End') {
+      goTo(TOTAL - 1);
+    }
+  });
+
+  // Touch / swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1);
+  });
+
+  // Auto-hide controls
+  function resetHide() {
+    document.getElementById('controls').classList.remove('hidden');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      document.getElementById('controls').classList.add('hidden');
+    }, 3000);
+  }
+
+  document.addEventListener('mousemove', resetHide);
+  document.addEventListener('keydown', resetHide);
+  resetHide();
+
+  // Fullscreen
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    document.getElementById('fs-hint').style.display =
+      document.fullscreenElement ? 'none' : 'block';
+  });
+</script>
+</body>
+</html>

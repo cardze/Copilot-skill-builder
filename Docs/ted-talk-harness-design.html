@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Design for Long-Running AI Apps — TED Talk</title>
+<style>
+  :root {
+    --ted-red: #e62b1e;
+    --ted-dark: #111111;
+    --ted-gray: #1a1a1a;
+    --ted-mid: #2a2a2a;
+    --ted-light: #f5f5f5;
+    --ted-text: #e0e0e0;
+    --ted-muted: #888888;
+    --accent: #ff6b35;
+    --highlight: #ffd700;
+    --green: #4caf50;
+    --font-main: 'Georgia', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--ted-dark);
+    color: var(--ted-text);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 100;
+  }
+
+  .topbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-ui);
+  }
+
+  .ted-badge {
+    background: var(--ted-red);
+    color: white;
+    font-weight: 900;
+    font-size: 13px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  .talk-title-short {
+    font-size: 13px;
+    color: var(--ted-muted);
+    font-family: var(--font-ui);
+    font-weight: 400;
+  }
+
+  .topbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+
+  .timer-display {
+    color: var(--highlight);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 10px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  .timer-display:hover { background: #222; }
+  .timer-display.running { color: var(--green); border-color: var(--green); }
+
+  .btn-sm {
+    background: #222;
+    border: 1px solid #333;
+    color: var(--ted-text);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .btn-sm:hover { background: #333; border-color: #555; }
+  .btn-sm.active { background: var(--ted-red); border-color: var(--ted-red); color: white; }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-bar {
+    position: fixed;
+    top: 56px; left: 0; right: 0;
+    height: 3px;
+    background: #222;
+    z-index: 99;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ted-red), var(--accent));
+    transition: width 0.4s ease;
+  }
+
+  /* ─── SIDE NAV ─── */
+  .side-nav {
+    position: fixed;
+    top: 59px; left: 0; bottom: 0;
+    width: 220px;
+    background: rgba(15,15,15,0.97);
+    border-right: 1px solid #1e1e1e;
+    overflow-y: auto;
+    padding: 20px 0;
+    z-index: 90;
+    transition: transform 0.3s ease;
+  }
+
+  .side-nav::-webkit-scrollbar { width: 4px; }
+  .side-nav::-webkit-scrollbar-track { background: transparent; }
+  .side-nav::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  .nav-section-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ted-muted);
+    padding: 12px 20px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: #777;
+    line-height: 1.3;
+  }
+  .nav-item:hover { background: #1a1a1a; color: var(--ted-text); }
+  .nav-item.active {
+    border-left-color: var(--ted-red);
+    background: #1a1a1a;
+    color: white;
+  }
+
+  .nav-time {
+    font-size: 10px;
+    color: var(--ted-muted);
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .nav-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #444;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .nav-item.active .nav-dot { background: var(--ted-red); }
+
+  /* ─── MAIN CONTENT ─── */
+  .main {
+    margin-left: 220px;
+    padding-top: 59px;
+    min-height: 100vh;
+  }
+
+  .content-area {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 40px 120px;
+  }
+
+  /* ─── SLIDE ─── */
+  .slide {
+    display: none;
+    animation: slideIn 0.35s ease;
+  }
+  .slide.active { display: block; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── CHAPTER HEADER ─── */
+  .chapter-header {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #222;
+  }
+
+  .chapter-number {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--ted-red);
+    margin-bottom: 10px;
+  }
+
+  .chapter-title {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: white;
+    margin-bottom: 12px;
+  }
+
+  .chapter-meta {
+    display: flex;
+    gap: 20px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--ted-muted);
+  }
+
+  .chapter-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* ─── SCRIPT CONTENT ─── */
+  .script-body {
+    font-size: 18px;
+    line-height: 1.85;
+    color: #ccc;
+  }
+
+  .script-body p {
+    margin-bottom: 22px;
+  }
+
+  .script-body .quote-line {
+    font-size: 22px;
+    font-style: italic;
+    color: white;
+    border-left: 3px solid var(--ted-red);
+    padding-left: 20px;
+    margin: 32px 0;
+    line-height: 1.5;
+  }
+
+  .script-body .big-line {
+    font-size: 26px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin: 36px 0;
+    line-height: 1.3;
+  }
+
+  .script-body .emphasis {
+    color: white;
+    font-weight: 600;
+  }
+
+  .script-body .red {
+    color: var(--ted-red);
+    font-weight: 600;
+  }
+
+  /* ─── STAGE DIRECTION ─── */
+  .stage-dir {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-style: normal;
+    color: var(--accent);
+    background: rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.2);
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin: 4px 2px;
+    vertical-align: middle;
+  }
+
+  /* ─── SPEAKER NOTE ─── */
+  .speaker-note {
+    background: rgba(255,215,0,0.05);
+    border: 1px solid rgba(255,215,0,0.15);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: #b8a000;
+    line-height: 1.6;
+  }
+  .speaker-note::before {
+    content: '💡 演講者提示  ';
+    font-weight: 700;
+    color: var(--highlight);
+  }
+
+  /* ─── STAT CARDS ─── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  .stat-card {
+    background: var(--ted-gray);
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .stat-card.bad { border-color: #5a1a1a; background: rgba(90,26,26,0.3); }
+  .stat-card.good { border-color: #1a4a1a; background: rgba(26,74,26,0.3); }
+
+  .stat-label {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ted-muted);
+    margin-bottom: 12px;
+  }
+
+  .stat-value {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-card.bad .stat-value { color: #ff4444; }
+  .stat-card.good .stat-value { color: var(--green); }
+
+  .stat-desc {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--ted-muted);
+    line-height: 1.4;
+  }
+
+  /* ─── ARCHITECTURE DIAGRAM ─── */
+  .arch-diagram {
+    background: var(--ted-gray);
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 32px;
+    margin: 32px 0;
+    text-align: center;
+  }
+
+  .arch-nodes {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+
+  .arch-node {
+    background: var(--ted-dark);
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 16px 20px;
+    min-width: 130px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .arch-node:hover {
+    border-color: var(--ted-red);
+    transform: translateY(-2px);
+  }
+
+  .arch-node.highlight { border-color: var(--ted-red); }
+  .arch-node.highlight .node-name { color: var(--ted-red); }
+
+  .node-icon { font-size: 24px; margin-bottom: 6px; }
+  .node-name {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 14px;
+    color: white;
+    margin-bottom: 4px;
+  }
+  .node-role {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--ted-muted);
+  }
+
+  .arch-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 16px;
+    min-width: 80px;
+  }
+
+  .arrow-line {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, #444, var(--ted-red));
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -4px;
+    width: 0; height: 0;
+    border-left: 8px solid var(--ted-red);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .arrow-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    color: var(--ted-muted);
+    text-align: center;
+  }
+
+  .arch-bidirectional {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 16px;
+    min-width: 90px;
+  }
+
+  .bi-arrow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    color: var(--ted-muted);
+  }
+
+  .bi-line {
+    flex: 1;
+    height: 1px;
+    background: #555;
+  }
+
+  .arch-caption {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--ted-muted);
+    margin-top: 16px;
+  }
+
+  /* ─── CONCEPT PILLS ─── */
+  .concept-block {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 28px 0;
+  }
+
+  .concept-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: var(--ted-gray);
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 16px 20px;
+    transition: border-color 0.2s;
+  }
+  .concept-item:hover { border-color: #444; }
+
+  .concept-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .concept-text { flex: 1; }
+
+  .concept-title {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 15px;
+    color: white;
+    margin-bottom: 6px;
+  }
+
+  .concept-desc {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--ted-muted);
+    line-height: 1.5;
+  }
+
+  /* ─── TIMELINE TABLE ─── */
+  .timeline-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 28px 0;
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+
+  .timeline-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ted-muted);
+    border-bottom: 1px solid #222;
+  }
+
+  .timeline-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #1a1a1a;
+    vertical-align: top;
+    line-height: 1.4;
+  }
+
+  .timeline-table tr:hover td { background: #161616; }
+
+  .timeline-table .time-cell {
+    color: var(--ted-red);
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .timeline-table .msg-cell {
+    color: var(--ted-muted);
+    font-style: italic;
+  }
+
+  /* ─── PULLQUOTE ─── */
+  .pullquote {
+    text-align: center;
+    margin: 48px 0;
+    padding: 40px 32px;
+    background: var(--ted-gray);
+    border-radius: 12px;
+    border: 1px solid #222;
+    position: relative;
+  }
+
+  .pullquote::before {
+    content: '\201C';
+    font-size: 80px;
+    line-height: 0.5;
+    color: var(--ted-red);
+    opacity: 0.4;
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    font-family: Georgia, serif;
+  }
+
+  .pullquote-text {
+    font-size: 22px;
+    font-style: italic;
+    color: white;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .pullquote-attr {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--ted-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ─── SLIDE NAV FOOTER ─── */
+  .slide-footer {
+    position: fixed;
+    bottom: 0; left: 220px; right: 0;
+    background: rgba(10,10,10,0.96);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid #1e1e1e;
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 90;
+  }
+
+  .nav-btn {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    color: var(--ted-text);
+    padding: 8px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover:not(:disabled) { background: #2a2a2a; border-color: #444; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .nav-btn.primary {
+    background: var(--ted-red);
+    border-color: var(--ted-red);
+    color: white;
+  }
+  .nav-btn.primary:hover { background: #c0231a; }
+
+  .slide-counter {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--ted-muted);
+    text-align: center;
+  }
+
+  .slide-counter .current { color: white; font-weight: 700; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .side-nav { transform: translateX(-100%); }
+    .side-nav.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .slide-footer { left: 0; }
+    .content-area { padding: 32px 20px 100px; }
+    .stat-grid { grid-template-columns: 1fr; }
+    .arch-nodes { flex-direction: column; }
+    .arch-arrow, .arch-bidirectional { transform: rotate(90deg); }
+    .chapter-title { font-size: 24px; }
+    .script-body { font-size: 16px; }
+  }
+
+  /* ─── OVERVIEW MODE ─── */
+  .overview-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 48px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .overview-grid.active { display: grid; }
+
+  .overview-card {
+    background: var(--ted-gray);
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .overview-card:hover {
+    border-color: var(--ted-red);
+    transform: translateY(-2px);
+  }
+  .ov-number {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--ted-red);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .ov-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 8px;
+  }
+  .ov-time {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--ted-muted);
+    margin-bottom: 10px;
+  }
+  .ov-summary {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  /* ─── KEYWORD HIGHLIGHT TOGGLE ─── */
+  .kw { transition: background 0.2s, color 0.2s; }
+  body.highlight-on .kw {
+    background: rgba(230,43,30,0.15);
+    color: #ff8888;
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <span class="ted-badge">TED</span>
+    <span class="talk-title-short">Harness Design for Long-Running AI Apps</span>
+  </div>
+  <div class="topbar-controls">
+    <button class="btn-sm" id="btn-overview" onclick="toggleOverview()">總覽</button>
+    <button class="btn-sm" id="btn-notes" onclick="toggleNotes()">舞台提示</button>
+    <button class="btn-sm" id="btn-highlight" onclick="toggleHighlight()">關鍵詞</button>
+    <div class="timer-display" id="timer" onclick="toggleTimer()" title="點擊開始/暫停計時">▶ 00:00</div>
+  </div>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar">
+  <div class="progress-fill" id="progress-fill"></div>
+</div>
+
+<!-- SIDE NAV -->
+<nav class="side-nav" id="side-nav">
+  <div class="nav-section-label">演講段落</div>
+
+  <div class="nav-item active" onclick="goTo(0)">
+    <div class="nav-dot"></div>
+    <span>開場 Hook</span>
+    <span class="nav-time">0:00</span>
+  </div>
+  <div class="nav-item" onclick="goTo(1)">
+    <div class="nav-dot"></div>
+    <span>背景：Agent & Patterns</span>
+    <span class="nav-time">1:30</span>
+  </div>
+  <div class="nav-item" onclick="goTo(2)">
+    <div class="nav-dot"></div>
+    <span>第一章：問題</span>
+    <span class="nav-time">4:30</span>
+  </div>
+  <div class="nav-item" onclick="goTo(3)">
+    <div class="nav-dot"></div>
+    <span>第二章：洞見</span>
+    <span class="nav-time">7:30</span>
+  </div>
+  <div class="nav-item" onclick="goTo(4)">
+    <div class="nav-dot"></div>
+    <span>第三章：架構</span>
+    <span class="nav-time">10:00</span>
+  </div>
+  <div class="nav-item" onclick="goTo(5)">
+    <div class="nav-dot"></div>
+    <span>第四章：結果</span>
+    <span class="nav-time">12:30</span>
+  </div>
+  <div class="nav-item" onclick="goTo(6)">
+    <div class="nav-dot"></div>
+    <span>第五章：啟示</span>
+    <span class="nav-time">14:00</span>
+  </div>
+  <div class="nav-item" onclick="goTo(7)">
+    <div class="nav-dot"></div>
+    <span>結語</span>
+    <span class="nav-time">16:30</span>
+  </div>
+</nav>
+
+<!-- MAIN AREA -->
+<main class="main">
+
+  <!-- OVERVIEW GRID -->
+  <div class="overview-grid" id="overview-grid">
+    <div class="overview-card" onclick="goTo(0); toggleOverview(true)">
+      <div class="ov-number">開場</div>
+      <div class="ov-title">Hook — 一句話做出一個 app</div>
+      <div class="ov-time">0:00 – 1:30 ・ 1.5 分鐘</div>
+      <div class="ov-summary">用驚人的結果先抓住觀眾，再引出今天的主題。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(1); toggleOverview(true)">
+      <div class="ov-number">背景知識</div>
+      <div class="ov-title">什麼是 Agent？Orchestration Patterns</div>
+      <div class="ov-time">1:30 – 4:30 ・ 3 分鐘</div>
+      <div class="ov-summary">AI Agent 的定義、工具能力，以及 Sequential / Parallel / Evaluator-Optimizer 等 orchestration patterns。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(2); toggleOverview(true)">
+      <div class="ov-number">第一章</div>
+      <div class="ov-title">問題 — AI 為什麼「失智」</div>
+      <div class="ov-time">4:30 – 7:30 ・ 3 分鐘</div>
+      <div class="ov-summary">Context Anxiety 與 Self-Evaluation Bias 兩大根本問題。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(3); toggleOverview(true)">
+      <div class="ov-number">第二章</div>
+      <div class="ov-title">洞見 — GAN 給的靈感</div>
+      <div class="ov-time">7:30 – 10:00 ・ 2.5 分鐘</div>
+      <div class="ov-summary">Generator-Evaluator 對抗式架構的誕生，Playwright 嚴格測試。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(4); toggleOverview(true)">
+      <div class="ov-number">第三章</div>
+      <div class="ov-title">架構 — 三個 Agent 的分工</div>
+      <div class="ov-time">10:00 – 12:30 ・ 2.5 分鐘</div>
+      <div class="ov-summary">Planner / Generator / Evaluator 各自的角色與協作方式。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(5); toggleOverview(true)">
+      <div class="ov-number">第四章</div>
+      <div class="ov-title">結果 — 數字不說謊</div>
+      <div class="ov-time">12:30 – 14:00 ・ 1.5 分鐘</div>
+      <div class="ov-summary">同樣的 prompt，$9 vs $200，以及模型進化後 harness 的簡化。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(6); toggleOverview(true)">
+      <div class="ov-number">第五章</div>
+      <div class="ov-title">更大啟示 — 結構即品質</div>
+      <div class="ov-time">14:00 – 16:00 ・ 2 分鐘</div>
+      <div class="ov-summary">從 code review 到手術室，結構才是品質的來源，不是個人天才。</div>
+    </div>
+    <div class="overview-card" onclick="goTo(7); toggleOverview(true)">
+      <div class="ov-number">結語</div>
+      <div class="ov-title">設計環境，釋放潛力</div>
+      <div class="ov-time">16:00 – 16:30 ・ 0.5 分鐘</div>
+      <div class="ov-summary">「你怎麼設計一個環境，讓 AI 真正發揮潛力？」</div>
+    </div>
+  </div>
+
+  <!-- SLIDES CONTAINER -->
+  <div class="content-area" id="content-area">
+
+    <!-- SLIDE 0: 開場 -->
+    <div class="slide active" id="slide-0">
+      <div class="chapter-header">
+        <div class="chapter-number">開場 ・ 0:00 – 1:30</div>
+        <div class="chapter-title">一句話，做出一個 app</div>
+        <div class="chapter-meta">
+          <span>⏱ 1.5 分鐘</span>
+          <span>🎯 抓住注意力</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-0">
+        走上台，停頓三秒，環視觀眾。開場不要急，讓沉默發揮效果。第一個問題要讓觀眾真的想一想，不要立刻接下一句話。
+      </div>
+
+      <div class="script-body">
+        <p>
+          <span class="stage-dir">走上台，停頓三秒，環視觀眾</span>
+        </p>
+
+        <p>我想問大家一個問題。</p>
+
+        <div class="quote-line">
+          如果今天有人跟你說——「你只需要說一句話，就有人幫你做出一個完整的軟體應用程式。」你相信嗎？
+        </div>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>六個月前，我也不相信。</p>
+
+        <p>但就在今年，Anthropic 的工程師做到了——他用一句話：</p>
+
+        <div class="quote-line">
+          「幫我做一個 2D 復古遊戲製作工具。」
+        </div>
+
+        <p>六小時後，他拿到了一個有關卡編輯器、角色編輯器、<span class="kw">AI 輔助關卡設計</span>，還有完整遊戲引擎的應用程式。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>今天，我想跟大家聊聊這件事背後的核心技術——</p>
+
+        <p>它叫做 <span class="emphasis kw">Harness Design</span>。</p>
+
+        <p>它不是新的 AI 模型。它不是新的訓練方法。</p>
+
+        <div class="big-line">它是一個問題的解答：<br>「如何讓一個很聰明的 AI，<br>真正把一件複雜的事做完？」</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 1: 背景知識 — Agent & Orchestration -->
+    <div class="slide" id="slide-1">
+      <div class="chapter-header">
+        <div class="chapter-number">背景知識 ・ 1:30 – 4:30</div>
+        <div class="chapter-title">什麼是 Agent？Orchestration Patterns</div>
+        <div class="chapter-meta">
+          <span>⏱ 3 分鐘</span>
+          <span>🎯 建立概念框架</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-1">
+        這段是幫觀眾「裝備武器」。不需要太技術，用日常類比帶出 agent 的概念。Orchestration patterns 只需要說清楚四個名字，重點放在 Evaluator-Optimizer——因為整個演講的核心就是這個 pattern。最後的橋接句要說得有力，讓觀眾意識到接下來的問題章節是在解釋「為什麼 naive 做法不夠」。
+      </div>
+
+      <div class="script-body">
+        <p><span class="stage-dir">切換投影片：Agent 感知-推理-行動迴圈</span></p>
+
+        <p>在我說 Harness Design 之前，我需要先確認大家對一個概念有共同的理解——</p>
+
+        <p>什麼是 <span class="emphasis kw">AI Agent</span>？</p>
+
+        <p>一般的 AI 呼叫，是一問一答。你問，它回答，結束。</p>
+
+        <p>Agent 不一樣。它有一個<span class="emphasis">迴圈</span>：</p>
+
+        <div class="quote-line">
+          觀察環境 → 思考決策 → 使用工具採取行動 → 觀察結果 → 再次思考……
+        </div>
+
+        <p>這個迴圈一直轉，直到目標達成為止。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>而 Agent 能使用的工具，包括：搜尋網路、執行程式碼、讀寫檔案、操作瀏覽器——</p>
+
+        <p>還有一個最關鍵的工具：<span class="red">呼叫另一個 Agent。</span></p>
+
+        <p>這就帶出了今天真正的核心概念——<span class="emphasis kw">Orchestration</span>。</p>
+
+        <p><span class="stage-dir">切換投影片：四種 Orchestration Patterns</span></p>
+
+        <p>當一個 Agent 不夠用的時候，你可以讓 Agent 指揮 Agent。這叫做 Orchestration Patterns，目前業界有四種主要模式：</p>
+
+        <p><span class="emphasis">第一種，Sequential Pipeline</span>——像工廠流水線，A 做完交給 B，B 做完交給 C。適合有明確步驟的任務。</p>
+
+        <p><span class="emphasis">第二種，Parallel Workers</span>——一個 Orchestrator 同時派出多個 worker 平行處理，最後匯整結果。適合可以拆分的大型任務。</p>
+
+        <p><span class="emphasis">第三種，Routing</span>——根據輸入的性質，動態決定要派給哪個專業 Agent 處理。像一個智慧型客服中心的分派系統。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>然後是第四種——也是今天的主角：</p>
+
+        <div class="big-line"><span class="red">Evaluator-Optimizer Pattern</span></div>
+
+        <p>一個 Agent 負責<span class="red">產出</span>。另一個 Agent 負責<span class="red">嚴格評估</span>。評估結果回傳給產出者，讓它改進。這個迴圈不斷循環，直到達到明確的標準為止。</p>
+
+        <p><span class="stage-dir">切換投影片：Evaluator-Optimizer 迴圈圖</span></p>
+
+        <p>這個 pattern 的關鍵，是<span class="emphasis">分離</span>。產出者不評估自己的作品。評估者不參與產出。</p>
+
+        <p>聽起來很簡單，對嗎？</p>
+
+        <p><span class="stage-dir">停頓，微笑</span></p>
+
+        <p>但在 AI 的世界裡，要讓這個 pattern 真正有效，有一個非常根本的障礙。</p>
+
+        <p>讓我解釋。</p>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">🤖</div>
+          <div class="concept-text">
+            <div class="concept-title kw">Agent vs. 一般 API 呼叫</div>
+            <div class="concept-desc">一般 API：問一個問題，得一個答案，結束。Agent：設定目標，自主使用工具，根據結果調整，持續執行直到完成——包括呼叫其他 Agent 作為工具。</div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">🔄</div>
+          <div class="concept-text">
+            <div class="concept-title kw">四種 Orchestration Patterns</div>
+            <div class="concept-desc">
+              ① Sequential Pipeline — A→B→C 流水線<br>
+              ② Parallel Workers — 同時派出多個 worker<br>
+              ③ Routing — 動態路由到專業 Agent<br>
+              ④ <strong style="color: var(--accent)">Evaluator-Optimizer — 產出 ⇄ 嚴格評估（今天的主角）</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: 第一章 問題 -->
+    <div class="slide" id="slide-2">
+      <div class="chapter-header">
+        <div class="chapter-number">第一章 ・ 1:30 – 4:30</div>
+        <div class="chapter-title">問題——為什麼 AI 會「失智」</div>
+        <div class="chapter-meta">
+          <span>⏱ 3 分鐘</span>
+          <span>🎯 建立問題框架</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-2">
+        這段要讓觀眾感同身受。「AI 說自己做得很好但其實是壞的」這個場景每個人都能理解。停頓後說「但當你真的打開 app」，要帶點戲劇性。
+      </div>
+
+      <div class="script-body">
+        <p><span class="stage-dir">切換投影片：AI 對話截圖，顯示自誇的回應</span></p>
+
+        <p>先讓我描述一個你可能沒想過的場景。</p>
+
+        <p>你叫 Claude 幫你建一個完整的 web app。一開始，它做得很好。架構清晰，程式碼乾淨，功能也一個個實作出來。</p>
+
+        <p>但兩個小時後——</p>
+
+        <p>它開始忘事了。</p>
+
+        <p>它忘記自己之前做了什麼決定。它開始重複做已經做過的事。它的程式碼開始出現矛盾。最後，它匆匆忙忙地「完成」了工作——然後告訴你：「這個 app 做得非常好！品質很高，功能完整！」</p>
+
+        <p><span class="stage-dir">停頓，微笑</span></p>
+
+        <p>但當你真的打開 app 試用的時候——遊戲裡的角色動不了。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>這不是 Claude 在說謊。這是兩個非常根本的問題。</p>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">🧠</div>
+          <div class="concept-text">
+            <div class="concept-title kw">Context Anxiety — 上下文焦慮</div>
+            <div class="concept-desc">每個 AI 都有「工作記憶」上限（context window）。當快滿的時候，它會開始「緊張」——倉促收尾、降低工作品質。就像你一邊看 100 頁文件一邊寫作，頁數越多就越記不住前面的內容。</div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">🪞</div>
+          <div class="concept-text">
+            <div class="concept-title kw">Self-Evaluation Bias — 自我評估偏差</div>
+            <div class="concept-desc">當你叫 AI 評估自己剛做的東西，它幾乎永遠都說「不錯！」即使 app 裡的核心功能是壞的，它還是會稱讚自己。這不是 AI 特有的問題——人類改自己的作業，也會覺得比較好。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="script-body">
+        <div class="pullquote">
+          <div class="pullquote-text">如何設計一個系統，讓 AI 能夠長時間工作，<br>而且能夠真正地、嚴格地評估自己的成果？</div>
+          <div class="pullquote-attr">核心問題</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: 洞見 -->
+    <div class="slide" id="slide-3">
+      <div class="chapter-header">
+        <div class="chapter-number">第二章 ・ 4:30 – 7:30</div>
+        <div class="chapter-title">洞見——從 GAN 得到的靈感</div>
+        <div class="chapter-meta">
+          <span>⏱ 3 分鐘</span>
+          <span>🎯 介紹核心洞見</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-3">
+        GAN 的故事要講得生動——「在酒吧裡想到的」這個細節很重要，讓觀眾覺得偉大的想法也可以來自日常。「讓 evaluator 變得嚴格」這個轉折要放慢說。
+      </div>
+
+      <div class="script-body">
+        <p><span class="stage-dir">切換投影片：GAN 架構示意圖</span></p>
+
+        <p>答案來自一個有趣的地方——</p>
+
+        <p>2014 年，一個叫做 Ian Goodfellow 的研究者，在一個酒吧裡想到了一個點子。他創造了一種叫做 <span class="emphasis kw">GAN——生成對抗網路</span>——的架構。</p>
+
+        <p>概念非常簡單：你有兩個神經網路。一個負責<span class="red">生成</span>，一個負責<span class="red">判別</span>。生成者想騙過判別者。判別者想抓住生成者。兩個不斷對抗、不斷進步。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>Anthropic 的工程師 Prithvi 看到了這個結構，然後想到一個問題——</p>
+
+        <div class="quote-line">如果我把 AI coding agent 也設計成這樣，會怎樣？</div>
+
+        <p>一個 agent 負責<span class="red">做</span>。另一個 agent 負責<span class="red">挑毛病</span>。</p>
+
+        <p><span class="stage-dir">停頓，讓這個概念沉澱</span></p>
+
+        <p>但這裡有一個關鍵的洞見——</p>
+
+        <p>光是「分開」是不夠的。因為如果你只是叫另一個 Claude 來評估，它還是會太仁慈。AI 對 AI 生成的東西，天生有一種寬容。</p>
+
+        <p>所以你需要做一件事：</p>
+
+        <div class="big-line">讓 evaluator 變得嚴格。</div>
+
+        <p>你需要給它具體的標準。你需要用 few-shot 範例校準它的口味。你需要讓它不只是「讀 code」，而是<span class="emphasis">真的去操作那個 app</span>。</p>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">🎭</div>
+          <div class="concept-text">
+            <div class="concept-title">Playwright 自動化測試</div>
+            <div class="concept-desc">Evaluator 被裝備了 Playwright——它可以自動開啟瀏覽器、點按鈕、填表單、測試每一個功能，像真實用戶一樣操作 app，然後給出精確到程式碼行數的 bug report。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="script-body">
+        <p><span class="stage-dir">切換投影片：Playwright 操作截圖</span></p>
+
+        <p>然後它會回報：</p>
+
+        <p>「Rectangle fill tool——<span class="red">FAIL</span>。函數存在，但 mouseUp 事件沒有正確觸發。」</p>
+        <p>「Delete entity——<span class="red">FAIL</span>。Handler 同時需要兩個條件，但點擊只設定了其中一個。」</p>
+
+        <p><span class="emphasis">精確到程式碼的哪一行出了什麼問題。</span></p>
+
+        <div class="pullquote">
+          <div class="pullquote-text">這才是真正的 code review。</div>
+          <div class="pullquote-attr">核心突破</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: 架構 -->
+    <div class="slide" id="slide-4">
+      <div class="chapter-header">
+        <div class="chapter-number">第三章 ・ 7:30 – 10:30</div>
+        <div class="chapter-title">架構——三個 Agent 的分工</div>
+        <div class="chapter-meta">
+          <span>⏱ 3 分鐘</span>
+          <span>🎯 說明完整架構</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-4">
+        這段是技術密度最高的段落。每介紹一個 agent，停頓讓觀眾消化。「Sprint contract」這個概念要解釋清楚——它解決了一個「做完」定義不明確的問題，這個問題觀眾都有共鳴。
+      </div>
+
+      <div class="arch-diagram">
+        <div class="arch-nodes">
+          <div class="arch-node">
+            <div class="node-icon">🗺️</div>
+            <div class="node-name">Planner</div>
+            <div class="node-role">規格 & 野心</div>
+          </div>
+          <div class="arch-arrow">
+            <div class="arrow-line"></div>
+            <div class="arrow-label">產品規格書</div>
+          </div>
+          <div class="arch-node highlight">
+            <div class="node-icon">⚡</div>
+            <div class="node-name">Generator</div>
+            <div class="node-role">實作 sprint</div>
+          </div>
+          <div class="arch-bidirectional">
+            <div class="bi-arrow">
+              <div class="bi-line"></div>
+              <span>→ 交付</span>
+            </div>
+            <div class="bi-arrow">
+              <span>← bugs</span>
+              <div class="bi-line"></div>
+            </div>
+          </div>
+          <div class="arch-node">
+            <div class="node-icon">🔍</div>
+            <div class="node-name">Evaluator</div>
+            <div class="node-role">瀏覽器測試</div>
+          </div>
+        </div>
+        <div class="arch-caption">三個 agent 各司其職，沒有人評估自己的工作</div>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">🗺️</div>
+          <div class="concept-text">
+            <div class="concept-title kw">Planner</div>
+            <div class="concept-desc">把你的一句話擴展成完整的產品規格書——功能列表、技術選型、視覺設計方向、AI 功能整合計劃。它讓系統從一開始就有「野心」，避免 Generator 低估範疇。</div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">⚡</div>
+          <div class="concept-text">
+            <div class="concept-title kw">Generator + Sprint Contract</div>
+            <div class="concept-desc">每個 sprint 開始前，Generator 和 Evaluator 協商一份 sprint contract——「我這個 sprint 要做什麼、達到什麼標準、你要怎麼測試我。」雙方同意才開始寫 code，強迫把「做完」的定義說清楚。</div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">🔍</div>
+          <div class="concept-text">
+            <div class="concept-title kw">Evaluator</div>
+            <div class="concept-desc">不讀 code。打開瀏覽器，像用戶一樣操作 app，測試每一個 sprint contract 裡的標準。失敗就給出精確的 bug report 回傳給 Generator。這個迴圈一輪一輪轉，直到每個標準都通過為止。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="script-body">
+        <div class="pullquote">
+          <div class="pullquote-text">不同的 agent，做不同的事。<br>沒有人評估自己的工作。</div>
+          <div class="pullquote-attr">系統核心原則</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: 結果 -->
+    <div class="slide" id="slide-5">
+      <div class="chapter-header">
+        <div class="chapter-number">第四章 ・ 10:30 – 12:30</div>
+        <div class="chapter-title">結果與演化</div>
+        <div class="chapter-meta">
+          <span>⏱ 2 分鐘</span>
+          <span>🎯 用數字說話</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-5">
+        數字對比要讓觀眾真的感受到差距。「貴了 20 倍，但做出來的東西真的能用」這句要說得有力。後半段關於 harness 簡化要帶出一個洞見：harness 不是永恆的，它隨模型進化。
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card bad">
+          <div class="stat-label">單一 Agent</div>
+          <div class="stat-value">$9</div>
+          <div class="stat-desc">20 分鐘完成<br>遊戲引擎是壞的<br>角色動不了</div>
+        </div>
+        <div class="stat-card good">
+          <div class="stat-label">三 Agent Harness</div>
+          <div class="stat-value">$200</div>
+          <div class="stat-desc">6 小時完成<br>遊戲可以玩<br>AI 輔助 + 完整編輯器</div>
+        </div>
+      </div>
+
+      <div class="script-body">
+        <p>貴了 20 倍，但做出來的東西<span class="emphasis">真的能用</span>。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>但故事沒有結束。</p>
+
+        <p>隨著 Claude Opus 4.6 推出，工程師發現了一件有趣的事：很多原本 harness 負責解決的問題——context anxiety、sprint 分解——<span class="emphasis">新模型自己就能處理了</span>。</p>
+
+        <p>所以他把 harness 簡化了。移掉 context reset。移掉 sprint 結構。讓 generator 連續工作兩個多小時，不需要中斷。</p>
+
+        <p>結果呢？最終的 <span class="kw">DAW app</span>——一個完整的瀏覽器音樂製作軟體——你可以在裡面建鼓組、加旋律、調混音、加 reverb，然後叫 AI 幫你一鍵生成一首歌的框架。</p>
+
+        <p><span class="stage-dir">停頓，環視觀眾</span></p>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">💡</div>
+          <div class="concept-text">
+            <div class="concept-title">關鍵洞見：Harness 不是永恆的</div>
+            <div class="concept-desc">Harness 的設計，本質上是一組「模型做不到什麼」的假設。隨著模型進步，這些假設會過期。好的工程師需要不斷問自己：這個組件現在還 load-bearing 嗎？還是模型已經自己能做到了？</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: 啟示 -->
+    <div class="slide" id="slide-6">
+      <div class="chapter-header">
+        <div class="chapter-number">第五章 ・ 12:30 – 14:30</div>
+        <div class="chapter-title">更大的啟示——結構才是品質的來源</div>
+        <div class="chapter-meta">
+          <span>⏱ 2 分鐘</span>
+          <span>🎯 普遍化道理</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-6">
+        這段要從技術跳到哲學。每個類比——code review、期刊審查、手術室 checklist——停頓一下讓觀眾消化。最後的大結論要說得有力、放慢速度。
+      </div>
+
+      <div class="script-body">
+        <p>我想在結束之前，說一件更大的事。</p>
+
+        <p>這個 harness 的故事，表面上是一個技術架構的故事。但更深層，它告訴我們一件關於「系統設計」的普遍道理。</p>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">👩‍💻</div>
+          <div class="concept-text">
+            <div class="concept-title">軟體公司</div>
+            <div class="concept-desc">有 code review、QA、staging 環境、design review。每一個環節都在說：我不相信任何人能完美地評估自己的工作。</div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">📚</div>
+          <div class="concept-text">
+            <div class="concept-title">頂尖學術期刊</div>
+            <div class="concept-desc">有雙盲審查。你不知道作者是誰，作者不知道你是誰。讓評估者保持嚴格、中立。</div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">🏥</div>
+          <div class="concept-text">
+            <div class="concept-title">頂尖手術室</div>
+            <div class="concept-desc">有 checklist。即使是世界最頂尖的外科醫生，也需要在開刀前逐項確認——不是因為他不夠聰明，而是因為結構保護所有人。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="script-body">
+        <div class="pullquote">
+          <div class="pullquote-text">結構，才是品質的來源。<br>不是個人的天才。</div>
+          <div class="pullquote-attr">核心主張</div>
+        </div>
+
+        <p>而 harness design 做的，就是把這個道理，應用到 AI agent 身上。</p>
+
+        <p>它說：不要只是叫 AI 更努力。</p>
+
+        <div class="big-line">要給 AI 一個更好的工作環境。</div>
+
+        <p>讓它能夠被檢查、被挑戰、被迫清楚地定義「完成」是什麼。</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: 結語 -->
+    <div class="slide" id="slide-7">
+      <div class="chapter-header">
+        <div class="chapter-number">結語 ・ 14:30 – 15:00</div>
+        <div class="chapter-title">設計環境，釋放潛力</div>
+        <div class="chapter-meta">
+          <span>⏱ 0.5 分鐘</span>
+          <span>🎯 留下深刻印象</span>
+        </div>
+      </div>
+
+      <div class="speaker-note" id="note-7">
+        走近台前，語速放慢。最後一句話要說得清晰有力，然後讓沉默持續兩秒再鞠躬。不要急著說謝謝——讓問題迴響在場內。
+      </div>
+
+      <div class="script-body">
+        <p><span class="stage-dir">走近台前，停頓</span></p>
+
+        <p>我們正在進入一個很奇妙的時代。</p>
+
+        <p>AI 的能力在快速增長。但「讓 AI 真正完成複雜任務」這件事，不只是模型的問題——</p>
+
+        <div class="big-line">也是系統的問題。<br>也是設計的問題。</div>
+
+        <p>Harness design 告訴我們：最有趣的工程問題，不是「模型有多強」，而是——</p>
+      </div>
+
+      <div class="pullquote">
+        <div class="pullquote-text">你怎麼設計一個環境，<br>讓它能夠發揮出真正的潛力？</div>
+        <div class="pullquote-attr">留給觀眾的問題</div>
+      </div>
+
+      <div class="script-body">
+        <p><span class="stage-dir">停頓，環視觀眾</span></p>
+
+        <p>這個問題的答案，還在不斷演化中。</p>
+
+        <p>而這，正是現在這個時代，最令人興奮的地方。</p>
+
+        <p><span class="stage-dir">停頓兩秒</span></p>
+
+        <p>謝謝大家。</p>
+
+        <p><span class="stage-dir">鞠躬</span></p>
+      </div>
+
+      <div style="margin-top: 48px; border-top: 1px solid #222; padding-top: 32px;">
+        <div class="chapter-number" style="margin-bottom: 16px;">演講節奏參考表</div>
+        <table class="timeline-table">
+          <thead>
+            <tr>
+              <th>段落</th>
+              <th>時間</th>
+              <th>核心訊息</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>開場 Hook</td><td class="time-cell">0:00–1:30</td><td class="msg-cell">用驚人的結果吸引注意</td></tr>
+            <tr><td>問題陳述</td><td class="time-cell">1:30–4:30</td><td class="msg-cell">Context Anxiety + Self-Evaluation Bias</td></tr>
+            <tr><td>洞見</td><td class="time-cell">4:30–7:30</td><td class="msg-cell">GAN 啟發的對抗式架構</td></tr>
+            <tr><td>架構細節</td><td class="time-cell">7:30–10:30</td><td class="msg-cell">Planner / Generator / Evaluator 分工</td></tr>
+            <tr><td>結果與演化</td><td class="time-cell">10:30–12:30</td><td class="msg-cell">數字對比，harness 隨模型簡化</td></tr>
+            <tr><td>更大啟示</td><td class="time-cell">12:30–14:30</td><td class="msg-cell">結構才是品質的來源</td></tr>
+            <tr><td>結語</td><td class="time-cell">14:30–15:00</td><td class="msg-cell">系統設計是這個時代的核心問題</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+</main>
+
+<!-- SLIDE FOOTER -->
+<div class="slide-footer">
+  <button class="nav-btn" id="btn-prev" onclick="navigate(-1)" disabled>
+    ← 上一段
+  </button>
+  <div class="slide-counter">
+    <span class="current" id="slide-current">1</span> / <span id="slide-total">7</span>
+  </div>
+  <button class="nav-btn primary" id="btn-next" onclick="navigate(1)">
+    下一段 →
+  </button>
+</div>
+
+<script>
+  const TOTAL_SLIDES = 8;
+  let currentSlide = 0;
+  let timerSeconds = 0;
+  let timerRunning = false;
+  let timerInterval = null;
+  let notesVisible = true;
+  let overviewOpen = false;
+
+  function goTo(index) {
+    document.getElementById('slide-' + currentSlide).classList.remove('active');
+    document.querySelectorAll('.nav-item')[currentSlide].classList.remove('active');
+
+    currentSlide = index;
+
+    document.getElementById('slide-' + currentSlide).classList.add('active');
+    document.querySelectorAll('.nav-item')[currentSlide].classList.add('active');
+
+    updateUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function navigate(dir) {
+    const next = currentSlide + dir;
+    if (next >= 0 && next < TOTAL_SLIDES) goTo(next);
+  }
+
+  function updateUI() {
+    document.getElementById('slide-current').textContent = currentSlide + 1;
+    document.getElementById('slide-total').textContent = TOTAL_SLIDES;
+    document.getElementById('btn-prev').disabled = currentSlide === 0;
+    document.getElementById('btn-next').disabled = currentSlide === TOTAL_SLIDES - 1;
+
+    const pct = ((currentSlide + 1) / TOTAL_SLIDES) * 100;
+    document.getElementById('progress-fill').style.width = pct + '%';
+  }
+
+  function toggleTimer() {
+    timerRunning = !timerRunning;
+    const el = document.getElementById('timer');
+    if (timerRunning) {
+      el.classList.add('running');
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+    } else {
+      el.classList.remove('running');
+      clearInterval(timerInterval);
+    }
+    updateTimerDisplay();
+  }
+
+  function updateTimerDisplay() {
+    const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+    const s = (timerSeconds % 60).toString().padStart(2, '0');
+    const icon = timerRunning ? '⏸' : '▶';
+    document.getElementById('timer').textContent = icon + ' ' + m + ':' + s;
+  }
+
+  function toggleNotes() {
+    notesVisible = !notesVisible;
+    document.querySelectorAll('[id^="note-"]').forEach(el => {
+      el.style.display = notesVisible ? 'block' : 'none';
+    });
+    const btn = document.getElementById('btn-notes');
+    btn.classList.toggle('active', !notesVisible);
+    btn.textContent = notesVisible ? '舞台提示' : '舞台提示 (隱藏)';
+  }
+
+  function toggleHighlight() {
+    document.body.classList.toggle('highlight-on');
+    document.getElementById('btn-highlight').classList.toggle('active');
+  }
+
+  function toggleOverview(forceClose) {
+    if (forceClose === true) overviewOpen = false;
+    else overviewOpen = !overviewOpen;
+
+    document.getElementById('overview-grid').classList.toggle('active', overviewOpen);
+    document.getElementById('content-area').style.display = overviewOpen ? 'none' : 'block';
+    document.getElementById('btn-overview').classList.toggle('active', overviewOpen);
+    document.getElementById('btn-overview').textContent = overviewOpen ? '返回演講' : '總覽';
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      navigate(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      navigate(-1);
+    } else if (e.key === 't' || e.key === 'T') {
+      toggleTimer();
+    } else if (e.key === 'o' || e.key === 'O') {
+      toggleOverview();
+    } else if (e.key === 'n' || e.key === 'N') {
+      toggleNotes();
+    } else if (e.key === 'Escape' && overviewOpen) {
+      toggleOverview(true);
+    }
+  });
+
+  // Init
+  updateUI();
+</script>
+</body>
+</html>
