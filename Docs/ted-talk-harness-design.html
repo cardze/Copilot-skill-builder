@@ -1062,7 +1062,7 @@
       </div>
 
       <div class="speaker-note" id="note-3">
-        GAN 的故事要講得生動——「在酒吧裡想到的」這個細節很重要，讓觀眾覺得偉大的想法也可以來自日常。「讓 evaluator 變得嚴格」這個轉折要放慢說。
+        GAN 的故事要講得生動——「在酒吧裡想到的」這個細節很重要，讓觀眾覺得偉大的想法也可以來自日常。「讓 evaluator 變得嚴格」這個轉折要放慢說。六種 back force 技術不需要逐一細講，挑 2-3 個你最有感覺的說就好，其他讓投影片帶過。最後「讓 PASS 很難賺到」這句要說得有力，它是整個 evaluator 設計的核心哲學。
       </div>
 
       <div class="script-body">
@@ -1115,9 +1115,71 @@
 
         <p><span class="emphasis">精確到程式碼的哪一行出了什麼問題。</span></p>
 
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>但我想在繼續之前，先說清楚一件事。</p>
+
+        <p>光是「讓另一個 agent 來評估」，還不夠。預設的 AI 行為是友善、是鼓勵——它天生想說好話。你需要主動地、刻意地給 evaluator 添加<span class="emphasis kw">後坐力</span>。</p>
+
+        <p><span class="stage-dir">切換投影片：六種 Back Force 技術</span></p>
+
+        <p>有六種方法可以做到這件事。</p>
+
+        <p>第一，<span class="emphasis">Adversarial System Prompt</span>——在 evaluator 的系統提示裡明確寫道：「你的工作是找錯，不是確認正確。預設假設功能是壞的。如果你不確定，就 FAIL。」這一句話，就能把 evaluator 的基準線往嚴格的方向移動。</p>
+
+        <p>第二，<span class="emphasis">Few-shot 校準</span>——給 evaluator 看兩個對比範例。一個是「太寬鬆的 PASS」：「按鈕存在，看起來可以點。」另一個是「正確嚴格的 FAIL」：「點擊後沒有回應，console 顯示 null reference。」這兩個範例，讓 evaluator 知道它的標準應該在哪裡。</p>
+
+        <p>第三，<span class="emphasis">Structured Verdict Schema</span>——強迫 evaluator 回傳 JSON，裡面必須包含：verdict、具體證據、重現步驟、根本原因假設，還有一個 confidence 分數。如果 confidence 低於 80，一律視為 FAIL。這樣做的好處是，evaluator 必須「言之有物」，無法模糊帶過。</p>
+
+        <p>第四，你已經看到了——<span class="emphasis">Playwright 工具接地</span>。不讀 code，直接操作 app。讓 evaluator 真的點按鈕、填表單，捕捉所有 console error。</p>
+
+        <p><span class="stage-dir">停頓</span></p>
+
+        <p>第五，也是我認為最被低估的一招——</p>
+
+        <div class="quote-line">在 Sprint Contract 裡預先定義<span class="red">失敗條件</span>。</div>
+
+        <p>不只告訴 evaluator「什麼叫成功」，還要告訴它「你必須主動去試這些失敗場景」：連續刪除兩次會不會壞？刪除最後一個元素會不會 crash？刪除時其他元素有沒有受影響？</p>
+
+        <p>這讓 evaluator 從「等著被說服這是好的」變成「要主動去把它搞壞」。</p>
+
+        <p>第六，<span class="emphasis">Multi-round Escalation</span>——如果 evaluator 給了 PASS 但 confidence 只有 70%，自動觸發第二輪更嚴格的檢查，帶著一個額外指令：「找出第一輪遺漏的問題。」</p>
+
+        <p><span class="stage-dir">停頓，環視觀眾</span></p>
+
+        <p>這六種技術的核心哲學，只有一句話：</p>
+
+        <div class="big-line">讓 <span class="red">PASS</span> 很難賺到。</div>
+
+        <p>Evaluator 應該需要努力才能給出 PASS——而不是需要努力才能給出 FAIL。</p>
+
         <div class="pullquote">
           <div class="pullquote-text">這才是真正的 code review。</div>
           <div class="pullquote-attr">核心突破</div>
+        </div>
+      </div>
+
+      <div class="concept-block">
+        <div class="concept-item">
+          <div class="concept-icon">⚔️</div>
+          <div class="concept-text">
+            <div class="concept-title kw">六種 Evaluator Back Force 技術</div>
+            <div class="concept-desc">
+              ① <strong>Adversarial System Prompt</strong> — 預設假設功能是壞的，PASS 需要正面證據<br>
+              ② <strong>Few-shot 校準</strong> — 用對比範例定義「真正嚴格」的標準<br>
+              ③ <strong>Structured Verdict Schema</strong> — 強制回傳有證據的 JSON，confidence &lt; 80 = FAIL<br>
+              ④ <strong>Tool Grounding (Playwright)</strong> — 真實操作 app，不只讀 code<br>
+              ⑤ <strong>Fail Criteria in Sprint Contract</strong> — 預定義失敗場景，強迫主動嘗試<br>
+              ⑥ <strong>Multi-round Escalation</strong> — 低 confidence PASS 自動觸發第二輪對抗檢查
+            </div>
+          </div>
+        </div>
+        <div class="concept-item">
+          <div class="concept-icon">🎯</div>
+          <div class="concept-text">
+            <div class="concept-title">核心哲學</div>
+            <div class="concept-desc">讓 PASS 很難賺到。Evaluator 應該需要努力才能給出 PASS，不是需要努力才能給出 FAIL。這個方向的反轉，是整個 back force 設計的根本。</div>
+          </div>
         </div>
       </div>
     </div>

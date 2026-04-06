@@ -841,6 +841,30 @@
     color: var(--muted);
   }
 
+  /* ── CODE BLOCK ── */
+  .code-block {
+    background: #0d0d0d;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 20px 24px;
+    font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+    font-size: 12px;
+    line-height: 1.75;
+    color: #ccc;
+    text-align: left;
+    width: 100%;
+    max-width: 680px;
+    overflow: hidden;
+  }
+
+  .code-block .ck { color: #ff79c6; }   /* keyword */
+  .code-block .cs { color: #f1fa8c; }   /* string */
+  .code-block .cc { color: #6272a4; }   /* comment */
+  .code-block .cn { color: #8be9fd; }   /* name/key */
+  .code-block .cv { color: #bd93f9; }   /* value/number */
+  .code-block .ce { color: var(--red); font-weight:700; } /* error/fail */
+  .code-block .cp { color: var(--green); font-weight:700; } /* pass */
+
   /* ── ENDING SLIDE ── */
   .end-question {
     font-size: clamp(22px, 3.5vw, 42px);
@@ -1283,6 +1307,119 @@
     <div class="slide-num">12</div>
   </div>
 
+  <!-- ─── SLIDE 7b: BACK FORCE TECHNIQUES ─── -->
+  <div class="slide" data-slide="7b">
+    <div class="section-tag">洞見 — Evaluator Back Force</div>
+    <div class="h2">讓 Evaluator 有真正的<span class="red">驗收能力</span></div>
+    <div class="spacer"></div>
+    <div class="orch-grid" style="max-width:900px">
+      <div class="orch-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+          <div class="orch-card-title">Adversarial System Prompt</div>
+        </div>
+        <div class="orch-card-desc">明確告訴 Evaluator：你的工作是找錯，不是確認正確。預設假設功能是壞的，PASS 需要正面證據。</div>
+        <div style="margin-top:8px; font-family:monospace; font-size:10px; color:#888; background:#0d0d0d; padding:8px 10px; border-radius:6px; line-height:1.6">
+          "Start with the assumption<br>that the feature is <span style="color:var(--red)">broken</span>.<br>When in doubt, <span style="color:var(--red)">FAIL</span>."
+        </div>
+      </div>
+      <div class="orch-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+          <div class="orch-card-title">Few-shot 校準嚴格度</div>
+        </div>
+        <div class="orch-card-desc">給 Evaluator 看「太寬鬆的 PASS」和「正確嚴格的 FAIL」的對比範例，讓它知道真正的標準在哪裡。</div>
+        <div style="margin-top:8px; display:flex; gap:6px">
+          <span style="font-size:10px; background:rgba(220,50,50,0.1); border:1px solid rgba(220,50,50,0.2); color:#ff8888; padding:3px 8px; border-radius:4px">BAD: "button exists ✓"</span>
+          <span style="font-size:10px; background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.2); color:var(--green); padding:3px 8px; border-radius:4px">GOOD: "click → no response"</span>
+        </div>
+      </div>
+      <div class="orch-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+          <div class="orch-card-title">Structured Verdict Schema</div>
+        </div>
+        <div class="orch-card-desc">強制 Evaluator 回傳 JSON，包含具體證據、重現步驟、根本原因假設。confidence &lt; 80 一律視為 FAIL。</div>
+        <div style="margin-top:8px; font-family:monospace; font-size:10px; color:#888; background:#0d0d0d; padding:8px 10px; border-radius:6px; line-height:1.6">
+          { "verdict": "PASS|<span style="color:var(--red)">FAIL</span>",<br>&nbsp;&nbsp;"evidence": "...",<br>&nbsp;&nbsp;"confidence": <span style="color:var(--red)">0-100</span> }
+        </div>
+      </div>
+      <div class="orch-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+          <div class="orch-card-title">Tool Grounding (Playwright)</div>
+        </div>
+        <div class="orch-card-desc">不讀 code，直接操作 app。Evaluator 有真實的 click / fill / screenshot 工具，錯誤逃不掉。</div>
+        <div style="margin-top:8px; font-size:10px; color:var(--orange); font-family:monospace; background:#0d0d0d; padding:8px 10px; border-radius:6px">page.click() → page.screenshot()<br>→ console_errors captured</div>
+      </div>
+      <div class="orch-card featured">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+          <div class="orch-card-title">負面測試案例 in Sprint Contract</div>
+        </div>
+        <div class="orch-card-desc">Sprint contract 裡預定義 <span style="color:var(--red)">fail_criteria</span>——讓 Evaluator 主動嘗試每一個失敗場景，不只測試 happy path。</div>
+        <div style="margin-top:6px"><div class="loop-tag">最強一招</div></div>
+      </div>
+      <div class="orch-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);color:white;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</div>
+          <div class="orch-card-title">Multi-round Escalation</div>
+        </div>
+        <div class="orch-card-desc">如果 PASS 但 confidence &lt; 90，自動觸發第二輪對抗性檢查：「找出第一輪遺漏的問題。」</div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:6px; font-size:10px; color:var(--muted)">
+          <span>Round 1: PASS (72%)</span>
+          <span style="color:var(--red)">→ escalate →</span>
+          <span>Round 2: FAIL</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">13</div>
+  </div>
+
+  <!-- ─── SLIDE 7c: FAIL CRITERIA CODE ─── -->
+  <div class="slide" data-slide="7c">
+    <div class="section-tag">洞見 — Evaluator Back Force</div>
+    <div class="h2">讓 PASS <span class="red">很難賺到</span></div>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <div class="code-block">
+      <span class="cc"># Sprint Contract — 預定義失敗條件</span><br>
+      sprint_contract = {<br>
+      &nbsp;&nbsp;<span class="cn">"feature"</span>: <span class="cs">"Delete entity from canvas"</span>,<br>
+      &nbsp;&nbsp;<br>
+      &nbsp;&nbsp;<span class="cn">"pass_criteria"</span>: [<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Entity disappears after clicking Delete"</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Ctrl+Z restores the entity"</span>,<br>
+      &nbsp;&nbsp;],<br>
+      &nbsp;&nbsp;<br>
+      &nbsp;&nbsp;<span class="ce">"fail_criteria"</span>: [&nbsp;&nbsp;<span class="cc"># Evaluator 必須主動嘗試每一條</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Entity still visible after delete"</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Console errors during delete"</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Other entities affected"</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Delete works once but <span class="ce">not twice</span> in a row"</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"Crash on deleting <span class="ce">last</span> entity"</span>,<br>
+      &nbsp;&nbsp;]<br>
+      }
+    </div>
+    <div class="spacer-lg"></div>
+    <div style="max-width:680px; width:100%; display:flex; gap:16px">
+      <div style="flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; text-align:left">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:8px">重新定義「完成」</div>
+        <div style="font-size:13px; color:#bbb; line-height:1.7">
+          PASS 需要正面通過所有 pass_criteria，<br>
+          <strong style="color:white">並且</strong>主動測試所有 fail_criteria 均未觸發。
+        </div>
+      </div>
+      <div style="flex:1; background:var(--surface); border:1px solid rgba(230,43,30,0.2); border-radius:10px; padding:16px 18px; text-align:left">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--red); margin-bottom:8px">核心洞見</div>
+        <div style="font-size:13px; color:#bbb; line-height:1.7">
+          Evaluator 應該需要<strong style="color:white">努力才能給出 PASS</strong>，<br>而不是需要努力才能給出 FAIL。
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">14</div>
+  </div>
+
   <!-- ─── SLIDE 8: PLAYWRIGHT RESULT ─── -->
   <div class="slide" data-slide="8">
     <div class="section-tag">洞見</div>
@@ -1299,7 +1436,7 @@
     </div>
     <div class="spacer-lg"></div>
     <div class="h3" style="color:white; font-size:20px">精確到程式碼的哪一行出了什麼問題。</div>
-    <div class="slide-num">13</div>
+    <div class="slide-num">15</div>
   </div>
 
   <!-- ─── SLIDE 9: ARCHITECTURE ─── -->
@@ -1340,7 +1477,7 @@
       </div>
     </div>
     <div class="caption" style="margin-top:8px">沒有人評估自己的工作</div>
-    <div class="slide-num">14</div>
+    <div class="slide-num">16</div>
   </div>
 
   <!-- ─── SLIDE 10: PLANNER ─── -->
@@ -1385,7 +1522,7 @@
         </div>
       </div>
     </div>
-    <div class="slide-num">15</div>
+    <div class="slide-num">17</div>
   </div>
 
   <!-- ─── SLIDE 11: SPRINT CONTRACT ─── -->
@@ -1405,7 +1542,7 @@
     <div class="body" style="max-width:560px; text-align:center">
       雙方同意後，才開始寫 code。<br>強迫把<strong style="color:white">「做完」的定義</strong>說清楚。
     </div>
-    <div class="slide-num">16</div>
+    <div class="slide-num">18</div>
   </div>
 
   <!-- ─── SLIDE 12: THE LOOP ─── -->
@@ -1440,7 +1577,7 @@
     </div>
     <div class="spacer"></div>
     <div class="caption">這個迴圈一輪一輪轉，直到每個標準都通過為止</div>
-    <div class="slide-num">17</div>
+    <div class="slide-num">19</div>
   </div>
 
   <!-- ─── SLIDE 13: RESULTS ─── -->
@@ -1461,7 +1598,7 @@
         <div class="stat-verdict verdict-pass">真的能用</div>
       </div>
     </div>
-    <div class="slide-num">18</div>
+    <div class="slide-num">20</div>
   </div>
 
   <!-- ─── SLIDE 14: EVOLUTION ─── -->
@@ -1481,7 +1618,7 @@
         <span style="color:var(--gold)">「這個組件現在還 load-bearing 嗎？<br>還是模型已經自己能做到了？」</span>
       </div>
     </div>
-    <div class="slide-num">19</div>
+    <div class="slide-num">21</div>
   </div>
 
   <!-- ─── SLIDE 15: REALITY CHECK ─── -->
@@ -1523,7 +1660,7 @@
         <span style="color:white; font-weight:700">但了解這個方向，會讓你看清楚 AI 工程的下一步在哪裡。</span>
       </div>
     </div>
-    <div class="slide-num">20</div>
+    <div class="slide-num">22</div>
   </div>
 
   <!-- ─── SLIDE 16: BIG TRUTH ─── -->
@@ -1550,7 +1687,7 @@
         <div style="font-size:12px; color:var(--red); font-weight:700">Harness Design<br>AI Agents</div>
       </div>
     </div>
-    <div class="slide-num">21</div>
+    <div class="slide-num">23</div>
   </div>
 
   <!-- ─── SLIDE 17: PRINCIPLE ─── -->
@@ -1563,7 +1700,7 @@
     <div class="h2" style="max-width:700px; line-height:1.2; color:#bbb">
       要給 AI 一個<br><span style="color:white">更好的工作環境</span>
     </div>
-    <div class="slide-num">22</div>
+    <div class="slide-num">24</div>
   </div>
 
   <!-- ─── SLIDE 18: CLOSING QUESTION ─── -->
@@ -1579,7 +1716,7 @@
     </div>
     <div class="spacer-lg"></div>
     <div class="ted-badge">謝謝大家</div>
-    <div class="slide-num">23 / 23</div>
+    <div class="slide-num">25 / 25</div>
   </div>
 
 </div><!-- /deck -->
@@ -1587,7 +1724,7 @@
 <!-- CONTROLS -->
 <div id="controls">
   <button class="ctrl-btn" id="prev-btn" onclick="navigate(-1)" disabled title="上一張 ←">←</button>
-  <div class="ctrl-counter" id="counter">1 / 23</div>
+  <div class="ctrl-counter" id="counter">1 / 25</div>
   <button class="ctrl-btn" id="next-btn" onclick="navigate(1)" title="下一張 →">→</button>
   <div class="ctrl-divider"></div>
   <button class="ctrl-btn ctrl-fullscreen" onclick="toggleFullscreen()" title="全螢幕 F">⛶</button>
